@@ -279,6 +279,7 @@
         let liveSession = null;
         let mediaStream = null;
         let audioContext = null;
+        let outAudioContext = null;
         let audioSource = null;
         let audioWorkletNode = null;
         let isStreaming = false;
@@ -479,6 +480,8 @@
                     this.port.onmessage = (event) => {
                         if (event.data.audioData) {
                             this.handleAudioData(event.data.audioData);
+                        } else if (event.data.command === 'clearBuffer') {
+                            this.buffer = [];
                         }
                     };
                     this.buffer = [];
@@ -580,17 +583,24 @@
                 audioSource = audioContext.createMediaStreamSource(mediaStream);
                  
                  // Step 4: Set up Audio Playback Worklet
+                 outAudioContext = new AudioContext({ sampleRate: 24000 });
+                 if (outAudioContext.state === 'suspended') {
+                     await outAudioContext.resume();
+                 }
                  const playbackBlob = new Blob([AudioPlaybackWorklet], { type: 'application/javascript' });
                  const playbackURL = URL.createObjectURL(playbackBlob);
-                 await audioContext.audioWorklet.addModule(playbackURL);
-                 audioPlaybackNode = new AudioWorkletNode(audioContext, 'audio-playback-worklet');
-                 audioPlaybackNode.connect(audioContext.destination);
+                 await outAudioContext.audioWorklet.addModule(playbackURL);
+                 audioPlaybackNode = new AudioWorkletNode(outAudioContext, 'audio-playback-worklet');
+                 audioPlaybackNode.connect(outAudioContext.destination);
 
-                 // Create a gain node to split the audio signal
+                // Create a gain node to split the audio signal
                 const splitter = audioContext.createChannelSplitter(2);
                 const merger = audioContext.createChannelMerger(2);
                 const gainNode = audioContext.createGain();
                 gainNode.gain.value = 1; // No gain change
+
+                // A silence gate implementation to only send speech, preventing background noise from keeping the channel "busy"
+                // which often delays barge-in.
 
                 // Step 4: Set up Audio Worklet
                 const workletBlob = new Blob([AudioRecordingWorklet], { type: 'application/javascript' });
@@ -632,7 +642,7 @@
                 liveSession = await genAI.live.connect({
                     model: MODEL_NAME,
                     audioConfig: { targetSampleRate: TARGET_SAMPLE_RATE },
-                    systemInstruction: SYSTEM_PROMPT,
+                    systemInstruction: { parts: [{ text: SYSTEM_PROMPT }] },
                     config: {
                         generationConfig: {
                             responseModalities: [Modality.AUDIO],
@@ -702,6 +712,11 @@
                                         currentTurnText += part.text;
                                     }
                                 }
+                            }
+                            if (message.serverContent?.interrupted) {
+                                liveOutput("Interrupted.", 'info');
+                                audioPlaybackNode.port.postMessage({ command: 'clearBuffer' });
+                                currentTurnText = "";
                             }
                             if (message.serverContent?.turnComplete || message.generationComplete) {
                                 // Finalize text when a turn was completed
@@ -776,9 +791,18 @@
                 };
 
                 // Handle volume events
+                let isSpeaking = false;
                 volumeWorkletNode.port.onmessage = (event) => {
                     if (event.data.volume !== undefined) {
                         updateVuMeter(event.data.volume);
+                        const wasSpeaking = isSpeaking;
+                        isSpeaking = event.data.volume > 0.05; // Quick noise gate
+                        
+                        // Client-side instantaneous barge-in
+                        if (isSpeaking && !wasSpeaking) {
+                            audioPlaybackNode.port.postMessage({ command: 'clearBuffer' });
+                            currentTurnText = "";
+                        }
                     }
                 };
 
@@ -790,7 +814,7 @@
 
         async function stopStreaming() {
             // Prevent multiple stop calls overlapping
-            if (!isStreaming && !liveSession && !mediaStream && !audioContext) {
+            if (!isStreaming && !liveSession && !mediaStream && !audioContext && !outAudioContext) {
                 console.log("Stop called but already stopped/cleaned up.");
                 return;
             }
@@ -837,6 +861,15 @@
                     liveOutput(`Error closing AudioContext: ${e.message}`, 'error');
                 } finally {
                     audioContext = null;
+                }
+            }
+            if (outAudioContext && outAudioContext.state !== 'closed') {
+                try {
+                    await outAudioContext.close();
+                } catch (e) {
+                    liveOutput(`Error closing outAudioContext: ${e.message}`, 'error');
+                } finally {
+                    outAudioContext = null;
                 }
             }
 
