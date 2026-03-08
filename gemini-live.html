@@ -581,17 +581,17 @@
                     await audioContext.resume();
                 }
                 audioSource = audioContext.createMediaStreamSource(mediaStream);
-                 
-                 // Step 4: Set up Audio Playback Worklet
-                 outAudioContext = new AudioContext({ sampleRate: 24000 });
-                 if (outAudioContext.state === 'suspended') {
-                     await outAudioContext.resume();
-                 }
-                 const playbackBlob = new Blob([AudioPlaybackWorklet], { type: 'application/javascript' });
-                 const playbackURL = URL.createObjectURL(playbackBlob);
-                 await outAudioContext.audioWorklet.addModule(playbackURL);
-                 audioPlaybackNode = new AudioWorkletNode(outAudioContext, 'audio-playback-worklet');
-                 audioPlaybackNode.connect(outAudioContext.destination);
+
+                // Step 4: Set up Audio Playback Worklet
+                outAudioContext = new AudioContext({ sampleRate: 24000 });
+                if (outAudioContext.state === 'suspended') {
+                    await outAudioContext.resume();
+                }
+                const playbackBlob = new Blob([AudioPlaybackWorklet], { type: 'application/javascript' });
+                const playbackURL = URL.createObjectURL(playbackBlob);
+                await outAudioContext.audioWorklet.addModule(playbackURL);
+                audioPlaybackNode = new AudioWorkletNode(outAudioContext, 'audio-playback-worklet');
+                audioPlaybackNode.connect(outAudioContext.destination);
 
                 // Create a gain node to split the audio signal
                 const splitter = audioContext.createChannelSplitter(2);
@@ -650,7 +650,7 @@
                                 voiceConfig: { prebuiltVoiceConfig: { voiceName: "Aoede" } }
                             },
                         },
-                        inputAudioTranscription: {}, 
+                        inputAudioTranscription: {},
                         tools: [
                             { googleSearch: {} },
                         ],
@@ -669,7 +669,7 @@
                                 console.log("Debug message:", message);
                             }
 
-                            if (message.serverContent?.modelTurn?.parts?.length > 0) {  
+                            if (message.serverContent?.modelTurn?.parts?.length > 0) {
                                 for (const part of message.serverContent.modelTurn.parts) {
                                     if (part.inlineData && part.inlineData.mimeType.startsWith('audio/')) {
                                         // Send to playback worklet
@@ -685,7 +685,7 @@
                                     if (part.inlineData && part.inlineData.mimeType.startsWith('image/')) {
                                         try {
                                             // Handle image data
-                                            const img = document.createElement('img');       
+                                            const img = document.createElement('img');
                                             img.classList.add('output-image'); // Add CSS class for styling
                                             img.src = `data:${part.inlineData.mimeType};base64,${part.inlineData.data}`;
                                             liveOutput("Image from Gemini:", "info")
@@ -693,8 +693,12 @@
                                             outputArea.parentNode.scrollTop = outputArea.parentNode.scrollHeight;
                                             // append model turn to context
                                             if (!part.inlineData.mimeType.startsWith('image/gif')) { // .gif files cause bugs
-                                                contextTurns.push({role: 'model', parts: [{inlineData: 
-                                                    {'mimeType': part.inlineData.mimeType, 'data': part.inlineData.data}}]});
+                                                contextTurns.push({
+                                                    role: 'model', parts: [{
+                                                        inlineData:
+                                                            { 'mimeType': part.inlineData.mimeType, 'data': part.inlineData.data }
+                                                    }]
+                                                });
                                             }
                                         } catch (renderError) {
                                             liveOutput(`Error rendering image: ${renderError.message}`, 'error');
@@ -702,12 +706,12 @@
                                     } else if (part.executableCode) {
                                         liveOutput("**Python code:**\n```\n" + part.executableCode.code + " ```");
                                         // append model turn to context
-                                        contextTurns.push({role: 'model', parts: [{text: part.executableCode.code}]});
+                                        contextTurns.push({ role: 'model', parts: [{ text: part.executableCode.code }] });
                                     } else if (part.codeExecutionResult) {
                                         const result = part.codeExecutionResult;
                                         liveOutput("**Output:** (" + result.outcome + ")\n``` \n" + result.output + " ```");
                                         // append model turn to context
-                                        contextTurns.push({role: 'model', parts: [{text: result.outcome + "\n\n" + result.output}]});
+                                        contextTurns.push({ role: 'model', parts: [{ text: result.outcome + "\n\n" + result.output }] });
                                     } else if (part.text) {
                                         currentTurnText += part.text;
                                     }
@@ -723,11 +727,11 @@
                                 if (currentTurnText.trim().length > 0) {
                                     liveOutput(currentTurnText);
                                     // append model turn to context
-                                    contextTurns.push({role: 'model', parts: [{text: currentTurnText}]});
+                                    contextTurns.push({ role: 'model', parts: [{ text: currentTurnText }] });
                                 }
                                 currentTurnText = ""; // Reset for next turn
                             } else if (message.serverContent?.inputTranscription) {
-                               liveOutput(message.serverContent?.inputTranscription.text, 'transcription');
+                                liveOutput(message.serverContent?.inputTranscription.text, 'transcription');
                             }
 
                             if (message.error) {
@@ -790,14 +794,14 @@
                     }
                 };
 
-                // Handle volume events
+                // Handle volume events 1
                 let isSpeaking = false;
                 volumeWorkletNode.port.onmessage = (event) => {
                     if (event.data.volume !== undefined) {
                         updateVuMeter(event.data.volume);
                         const wasSpeaking = isSpeaking;
                         isSpeaking = event.data.volume > 0.05; // Quick noise gate
-                        
+
                         // Client-side instantaneous barge-in
                         if (isSpeaking && !wasSpeaking) {
                             audioPlaybackNode.port.postMessage({ command: 'clearBuffer' });
