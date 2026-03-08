@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <!-- By Jim Salsman, April 2025. Released under the free MIT License. -->
+    <meta charset="UTF-8">
+    <title>Gemini Live Voice to Text Realtime: Enter API Key</title>
+    <meta name="description" content="Gemini Live voice-to-text realtime stream">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta property="og:title" content="Gemini Live Voice to Text Realtime">
+    <meta property="og:description" content="Gemini Live voice-to-text realtime stream">
+    <meta property="og:image" content="https://live.talknicer.com/screenshot.png">
+    <meta property="og:url" content="https://live.talknicer.com/">
+    <meta property="og:type" content="website">
+    <meta property="og:site_name" content="live.talknicer.com">
+    <meta name="twitter:card" content="summary">
+    <meta name="twitter:title" content="Gemini Live Voice to Text Realtime">
+    <meta name="twitter:description" content="Gemini Live voice-to-text realtime stream">
+    <meta name="twitter:image" content="https://live.talknicer.com/screenshot.png">
+    <style>
+        body {
+          background-color: #afa;
+          font-family: sans-serif;
+          text-align: center;
+        }
+        a { text-decoration: none; }
+        .description {
+          width: 80%;
+          margin: 0 auto;
+          text-align: left;
+        }
+    </style>
+</head>
+<body>
+    <h2>Gemini Live Voice to Text Realtime</h2>
+    <p>Enter your (free!) Gemini API key from:
+    <a href="https://aistudio.google.com/apikey" target="_blank"
+        style="text-decoration: none;">aistudio.google.com/apikey</a></p>
+    <form method="POST">
+      <input type="text" size="33" name="api_key" required>
+      <button type="submit">Run</button>
+    </form>
+    <br>
+    <p class="description">
+        This is a web application that allows you to interact with 
+        Google's Gemini 2.5 Flash Live large language model using your
+        voice in real-time. It's based on Google's <tt>js-genai</tt>
+        API to run entirely in the browser, providing a seamless,
+        voice-driven experience. Key features include Google Search,
+        Python code execution (including image display from e.g.
+        <tt>matplotlib</tt>) image upload (including from the camera
+        on mobile), and text output rendered in markdown and LaTeX.
+        The <a href="https://github.com/jsalsman/gemini-live"
+        target="_blank">source code is free on GitHub</a> under the
+        MIT License.
+        <em>Voice to text interactions are advantageous because most
+        people read about twice as fast as synthetic speech typically
+        talks, while text can be skimmed. Interrupting speech leaves
+        what might have been said as a frustrating mystery. Furthermore,
+        you can copy from text but not speech.</em>
+    </p>
+    <br>
+    <p class="description">
+        <b>Privacy policy:</b> Your API key is stored in a cookie which
+        is only accessible from the HTML JavaScript at this domain, which
+        runs only in your browser. It will never be stored anywhere else.
+        If you don't trust this, fork the code on GitHub to run it on
+        your own server, or from a <tt>localhost</tt> server with your
+        API key hardcoded in the <tt>gemini-live.html</tt> file.
+    </p>
+    <br>
+    <img src="/screenshot.png" width="60%" alt="screenshot">
+    <p>
+        By <a href="mailto:jim@talknicer.com"
+        >Jim Salsman</a>, April 11, 2025.
+        <a href="https://paypal.me/jsalsman">Donate.</a>
+    </p>
+</body>
+</html>
