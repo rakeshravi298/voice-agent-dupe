@@ -217,6 +217,9 @@
                 <label for="debugCheckbox"><small>Debug<br>
                         &nbsp;&nbsp;to console</small></label>
             </div>
+            <div id="micVolume"
+                style="font-size: 0.8em; color: #555; background: #fff; padding: 5px; border-radius: 4px; border: 1px solid #ccc; min-width: 60px;">
+                Mic: 0%</div>
             <button id="toggleStream">Start<br>
                 Listening</button>
             <button id="sendImage">Send<br>
@@ -283,6 +286,7 @@
         let audioSource = null;
         let audioWorkletNode = null;
         let isStreaming = false;
+        let agentIsPlaying = false;
         let currentTurnText = "";
         let totalBytesSent = 0;
         let contextTurns = [];
@@ -400,7 +404,7 @@
         // --- Audio Worklet ---
         const AudioRecordingWorklet = `
             class AudioProcessingWorklet extends AudioWorkletProcessor {
-                buffer = new Int16Array(2048);
+                buffer = new Int16Array(512); // Reduced from 2048 for much lower latency (~32ms)
                 bufferWriteIndex = 0;
 
                 constructor() {
@@ -485,8 +489,9 @@
                         }
                     };
                     this.buffer = [];
+                    this.lastIsPlaying = false;
                 }
-
+    
                 handleAudioData(data) {
                     const int16 = new Int16Array(data);
                     const float32 = new Float32Array(int16.length);
@@ -495,26 +500,41 @@
                     }
                     this.buffer.push(float32);
                 }
-
+    
                 process(inputs, outputs) {
-                    const output = outputs[0][0];
-                    if (this.buffer.length > 0) {
-                        let samplesNeeded = output.length;
+                    const output = outputs[0];
+                    if (!output || !output[0]) return true;
+                    
+                    const currentlyPlaying = this.buffer.length > 0;
+                    
+                    if (currentlyPlaying !== this.lastIsPlaying) {
+                        this.port.postMessage({ isPlaying: currentlyPlaying });
+                        this.lastIsPlaying = currentlyPlaying;
+                    }
+    
+                    if (currentlyPlaying) {
+                        const channelCount = output.length;
+                        const sampleCount = output[0].length;
+                        let samplesNeeded = sampleCount;
                         let offset = 0;
-
+    
                         while (samplesNeeded > 0 && this.buffer.length > 0) {
                             const chunk = this.buffer[0];
                             const available = chunk.length;
                             const toCopy = Math.min(available, samplesNeeded);
                             
-                            output.set(chunk.subarray(0, toCopy), offset);
+                            // Copy to all channels (Stereo support)
+                            const dataToSet = chunk.subarray(0, toCopy);
+                            for (let i = 0; i < channelCount; i++) {
+                                output[i].set(dataToSet, offset);
+                            }
                             
                             if (toCopy < available) {
                                 this.buffer[0] = chunk.subarray(toCopy);
                             } else {
                                 this.buffer.shift();
                             }
-
+    
                             samplesNeeded -= toCopy;
                             offset += toCopy;
                         }
@@ -529,6 +549,12 @@
 
         // Function to update the VU meter's background color
         function updateVuMeter(volume) {
+            const micVolElement = document.getElementById('micVolume');
+            if (micVolElement) {
+                micVolElement.textContent = `Mic: ${Math.round(volume * 100)}%`;
+                if (volume > 0.1) micVolElement.style.color = 'green';
+                else micVolElement.style.color = '#555';
+            }
             const darkness = Math.round(volume * 150); // Adjust multiplier for sensitivity
             const newRed = Math.max(0, 224 - darkness); // Base red: 224
             const newGreen = Math.max(0, 255 - darkness); // Base green: 255
@@ -565,17 +591,22 @@
                     return;
                 }
 
-                // Step 2: Get Microphone Access
+                // Step 2: Get Microphone Access - specifically request echo cancellation
                 mediaStream = await navigator.mediaDevices.getUserMedia({
                     audio: {
-                        sampleRate: TARGET_SAMPLE_RATE,
-                        echoCancellation: false,
-                        noiseSuppression: true
+                        echoCancellation: true,
+                        noiseSuppression: true,
+                        autoGainControl: true
                     }
                 });
 
-                // Step 3: Create Audio Context and Source
-                audioContext = new AudioContext({ sampleRate: TARGET_SAMPLE_RATE });
+                // Step 3: Create Audio Context and Source at 16kHz with low latency hint
+                audioContext = new AudioContext({
+                    sampleRate: TARGET_SAMPLE_RATE,
+                    latencyHint: 'interactive'
+                });
+                if (debugMode) console.log("AudioContext created with sample rate:", audioContext.sampleRate);
+
                 // Resume context if suspended (often needed after page load)
                 if (audioContext.state === 'suspended') {
                     await audioContext.resume();
@@ -587,17 +618,34 @@
                 if (outAudioContext.state === 'suspended') {
                     await outAudioContext.resume();
                 }
+
+                // Play a tiny beep to verify the audio path is live and allowed by browser
+                const oscillator = outAudioContext.createOscillator();
+                const testGain = outAudioContext.createGain();
+                oscillator.connect(testGain);
+                testGain.connect(outAudioContext.destination);
+                testGain.gain.setValueAtTime(0.1, outAudioContext.currentTime);
+                testGain.gain.exponentialRampToValueAtTime(0.01, outAudioContext.currentTime + 0.1);
+                oscillator.start();
+                oscillator.stop(outAudioContext.currentTime + 0.1);
+
+                if (debugMode) console.log("Output AudioContext created and verified at 24kHz.");
                 const playbackBlob = new Blob([AudioPlaybackWorklet], { type: 'application/javascript' });
                 const playbackURL = URL.createObjectURL(playbackBlob);
                 await outAudioContext.audioWorklet.addModule(playbackURL);
                 audioPlaybackNode = new AudioWorkletNode(outAudioContext, 'audio-playback-worklet');
                 audioPlaybackNode.connect(outAudioContext.destination);
 
-                // Create a gain node to split the audio signal
-                const splitter = audioContext.createChannelSplitter(2);
-                const merger = audioContext.createChannelMerger(2);
+                // Track when the agent is playing audio
+                audioPlaybackNode.port.onmessage = (event) => {
+                    if (event.data.isPlaying !== undefined) {
+                        agentIsPlaying = event.data.isPlaying;
+                        if (debugMode) console.log("Agent is playing:", agentIsPlaying);
+                    }
+                };
+
                 const gainNode = audioContext.createGain();
-                gainNode.gain.value = 1; // No gain change
+                gainNode.gain.value = 1;
 
                 // A silence gate implementation to only send speech, preventing background noise from keeping the channel "busy"
                 // which often delays barge-in.
@@ -624,17 +672,12 @@
                 }
                 volumeWorkletNode = new AudioWorkletNode(audioContext, 'volume-meter');
 
-                // Connect audio nodes: Mic Source -> Gain Node -> Volume Worklet
+                // Connect audio nodes: Mic Source -> Gain Node -> Volume Worklet & Processing Worklet
                 audioSource.connect(gainNode);
                 gainNode.connect(volumeWorkletNode);
+                gainNode.connect(audioWorkletNode);
 
-                //connect audio nodes: Gain Node -> split -> merge -> Gemini Worklet
-                gainNode.connect(splitter);
-                splitter.connect(merger, 0, 0); // Connect channel 0 to input 0
-                splitter.connect(merger, 0, 1); // Connect channel 0 to input 1
-                merger.connect(audioWorkletNode);
-
-                volumeWorkletNode.connect(audioWorkletNode);
+                if (debugMode) console.log("Audio graph connected successfully.");
 
                 // Step 5: Connect to Gemini Live API
                 // Assign to liveSession *after* connection is successful
@@ -659,10 +702,11 @@
                     callbacks: {
                         onopen: () => {
                             // The connection to Gemini is open; audio processing and sending can begin
-                            debugContainer.style.display = 'none'; // Hide controls
+                            debugContainer.style.display = 'none'; // Hide GitHub link/Debug checkbox
+                            // Keep micVolume visible so user knows it's working
+                            document.getElementById('micVolume').style.display = 'block';
                             sendImageButton.style.display = 'inline-block'; // Show the button
                             sendTextButton.style.display = 'inline-block';
-                            //liveOutput("Connected to Gemini. Listening...", 'info');
                         },
                         onmessage: (message) => {
                             if (debugMode) {
@@ -672,7 +716,7 @@
                             if (message.serverContent?.modelTurn?.parts?.length > 0) {
                                 for (const part of message.serverContent.modelTurn.parts) {
                                     if (part.inlineData && part.inlineData.mimeType.startsWith('audio/')) {
-                                        // Send to playback worklet
+                                        if (debugMode) console.log("Received audio chunk from Gemini, size:", part.inlineData.data.length);
                                         const binaryString = window.atob(part.inlineData.data);
                                         const bytes = new Uint8Array(binaryString.length);
                                         for (let i = 0; i < binaryString.length; i++) {
@@ -800,10 +844,15 @@
                     if (event.data.volume !== undefined) {
                         updateVuMeter(event.data.volume);
                         const wasSpeaking = isSpeaking;
-                        isSpeaking = event.data.volume > 0.05; // Quick noise gate
 
+                        // If agent is playing, we use an extremely high threshold for barge-in
+                        // to prevent echo from triggering it.
+                        const threshold = agentIsPlaying ? 0.8 : 0.1;
+                        isSpeaking = event.data.volume > threshold;
+    
                         // Client-side instantaneous barge-in
                         if (isSpeaking && !wasSpeaking) {
+                            if (debugMode) console.log("Barge-in detected! Volume:", event.data.volume.toFixed(2), "while agentIsPlaying:", agentIsPlaying);
                             audioPlaybackNode.port.postMessage({ command: 'clearBuffer' });
                             currentTurnText = "";
                         }
