@@ -1,22 +1,45 @@
-from flask import Flask, send_file, request, redirect, Response
+from flask import Flask, send_file, request, redirect, Response, render_template_string
 import os
+from dotenv import load_dotenv
+
+load_dotenv()
 
 app = Flask(__name__)
 
-@app.route("/", methods=['GET', 'POST'])
+def get_firebase_config():
+    return {
+        "apiKey": os.getenv("FIREBASE_API_KEY", ""),
+        "authDomain": os.getenv("FIREBASE_AUTH_DOMAIN", ""),
+        "projectId": os.getenv("FIREBASE_PROJECT_ID", ""),
+        "storageBucket": os.getenv("FIREBASE_STORAGE_BUCKET", ""),
+        "messagingSenderId": os.getenv("FIREBASE_MESSAGING_SENDER_ID", ""),
+        "appId": os.getenv("FIREBASE_APP_ID", "")
+    }
+
+def render_html_with_config(filename):
+    with open(filename, 'r', encoding='utf-8') as f:
+        html = f.read()
+    
+    config = get_firebase_config()
+    # Build a clean JS object based on available environment variables
+    config_items = []
+    for key, value in config.items():
+        if value:
+            config_items.append(f'{key}: "{value}"')
+    
+    config_js = "const firebaseConfig = {\n            " + ",\n            ".join(config_items) + "\n        };"
+    
+    html = html.replace('// CONFIG_PLACEHOLDER', config_js)
+    # Return as a direct Response to avoid Flask trying to parse JS/CSS { } as Jinja templates
+    return Response(html, mimetype='text/html')
+
+@app.route("/", methods=['GET'])
 def index():
-    if request.method == 'GET':
-        api_key = request.cookies.get('gemini_api_key')
-        if api_key:
-            return send_file('gemini-live.html')
-        else:
-            return send_file('landing.html')
-    elif request.method == 'POST':
-        api_key = request.form.get('api_key')
-        response = redirect("/")
-        response.set_cookie('gemini_api_key', api_key,
-            max_age=(31_536_000 * 5))  # five years
-        return response
+    return render_html_with_config('gemini-live.html')
+
+@app.route("/login", methods=['GET'])
+def login():
+    return render_html_with_config('landing.html')
 
 @app.route('/favicon.ico')
 def favicon():
@@ -32,6 +55,5 @@ def robots():
                     mimetype='text/plain')
 
 if __name__ == '__main__':
-    app.run(port=int(os.environ.get('PORT', 80)))
-# Ordinarily should be: python -m flask --app main run -p $PORT
-# or gunicorn, etc.
+    # Setting port to 5000 to match user's environment
+    app.run(port=int(os.environ.get('PORT', 5000)), host='0.0.0.0')

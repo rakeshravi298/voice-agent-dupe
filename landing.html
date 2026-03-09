@@ -1,78 +1,234 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
-    <!-- By Jim Salsman, April 2025. Released under the free MIT License. -->
     <meta charset="UTF-8">
-    <title>Gemini Live Voice to Text Realtime: Enter API Key</title>
-    <meta name="description" content="Gemini Live voice-to-text realtime stream">
+    <title>Diet Assistant | Secure Access</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta property="og:title" content="Gemini Live Voice to Text Realtime">
-    <meta property="og:description" content="Gemini Live voice-to-text realtime stream">
-    <meta property="og:image" content="https://live.talknicer.com/screenshot.png">
-    <meta property="og:url" content="https://live.talknicer.com/">
-    <meta property="og:type" content="website">
-    <meta property="og:site_name" content="live.talknicer.com">
-    <meta name="twitter:card" content="summary">
-    <meta name="twitter:title" content="Gemini Live Voice to Text Realtime">
-    <meta name="twitter:description" content="Gemini Live voice-to-text realtime stream">
-    <meta name="twitter:image" content="https://live.talknicer.com/screenshot.png">
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600&display=swap" rel="stylesheet">
     <style>
-        body {
-          background-color: #afa;
-          font-family: sans-serif;
-          text-align: center;
+        :root {
+            --primary: #2D3436;
+            --accent: #00B894;
+            --bg: #F9FAFB;
+            --card: #FFFFFF;
         }
-        a { text-decoration: none; }
-        .description {
-          width: 80%;
-          margin: 0 auto;
-          text-align: left;
+
+        body {
+            font-family: 'Outfit', sans-serif;
+            background-color: var(--bg);
+            color: var(--primary);
+            margin: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        .container {
+            max-width: 450px;
+            width: 90%;
+            padding: 40px;
+            background: var(--card);
+            border-radius: 24px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.05);
+            text-align: center;
+            animation: fadeIn 0.8s ease-out;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .logo {
+            font-size: 2.5rem;
+            margin-bottom: 0.5rem;
+            color: var(--accent);
+            font-weight: 600;
+        }
+
+        h1 {
+            font-size: 1.8rem;
+            margin-bottom: 1.5rem;
+            font-weight: 600;
+        }
+
+        p {
+            line-height: 1.6;
+            color: #636E72;
+            margin-bottom: 2rem;
+        }
+
+        .auth-form {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .input-group {
+            text-align: left;
+        }
+
+        .input-group label {
+            display: block;
+            font-size: 0.9rem;
+            margin-bottom: 5px;
+            font-weight: 500;
+        }
+
+        .input-field {
+            width: 100%;
+            padding: 12px;
+            border-radius: 10px;
+            border: 1px solid #DFE6E9;
+            box-sizing: border-box;
+            font-family: inherit;
+        }
+
+        .login-btn {
+            background: var(--accent);
+            color: white;
+            border: none;
+            padding: 16px;
+            font-size: 1.1rem;
+            border-radius: 12px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s;
+            width: 100%;
+            box-shadow: 0 4px 15px rgba(0, 184, 148, 0.3);
+            margin-top: 10px;
+        }
+
+        .login-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(0, 184, 148, 0.4);
+            background: #00A383;
+        }
+
+        .divider {
+            margin: 20px 0;
+            display: flex;
+            align-items: center;
+            color: #B2BEC3;
+            font-size: 0.8rem;
+        }
+
+        .divider::before,
+        .divider::after {
+            content: "";
+            flex: 1;
+            height: 1px;
+            background: #DFE6E9;
+        }
+
+        .divider span {
+            padding: 0 10px;
+        }
+
+        .toggle-auth {
+            font-size: 0.9rem;
+            color: var(--accent);
+            cursor: pointer;
+            background: none;
+            border: none;
+            font-weight: 600;
+            margin-top: 10px;
+        }
+
+        .footer {
+            margin-top: 2rem;
+            font-size: 0.85rem;
+            color: #B2BEC3;
         }
     </style>
 </head>
+
 <body>
-    <h2>Gemini Live Voice to Text Realtime</h2>
-    <p>Enter your (free!) Gemini API key from:
-    <a href="https://aistudio.google.com/apikey" target="_blank"
-        style="text-decoration: none;">aistudio.google.com/apikey</a></p>
-    <form method="POST">
-      <input type="text" size="33" name="api_key" required>
-      <button type="submit">Run</button>
-    </form>
-    <br>
-    <p class="description">
-        This is a web application that allows you to interact with 
-        Google's Gemini 2.5 Flash Live large language model using your
-        voice in real-time. It's based on Google's <tt>js-genai</tt>
-        API to run entirely in the browser, providing a seamless,
-        voice-driven experience. Key features include Google Search,
-        Python code execution (including image display from e.g.
-        <tt>matplotlib</tt>) image upload (including from the camera
-        on mobile), and text output rendered in markdown and LaTeX.
-        The <a href="https://github.com/jsalsman/gemini-live"
-        target="_blank">source code is free on GitHub</a> under the
-        MIT License.
-        <em>Voice to text interactions are advantageous because most
-        people read about twice as fast as synthetic speech typically
-        talks, while text can be skimmed. Interrupting speech leaves
-        what might have been said as a frustrating mystery. Furthermore,
-        you can copy from text but not speech.</em>
-    </p>
-    <br>
-    <p class="description">
-        <b>Privacy policy:</b> Your API key is stored in a cookie which
-        is only accessible from the HTML JavaScript at this domain, which
-        runs only in your browser. It will never be stored anywhere else.
-        If you don't trust this, fork the code on GitHub to run it on
-        your own server, or from a <tt>localhost</tt> server with your
-        API key hardcoded in the <tt>gemini-live.html</tt> file.
-    </p>
-    <br>
-    <img src="/screenshot.png" width="60%" alt="screenshot">
-    <p>
-        By <a href="mailto:jim@talknicer.com"
-        >Jim Salsman</a>, April 11, 2025.
-        <a href="https://paypal.me/jsalsman">Donate.</a>
-    </p>
+    <div class="container">
+        <div class="logo">🥗</div>
+        <h1 id="auth-title">Login</h1>
+        <p id="auth-subtitle">Welcome back! Please enter your details.</p>
+
+        <div class="auth-form">
+            <div class="input-group">
+                <label for="email">Email Address</label>
+                <input type="email" id="email" class="input-field" placeholder="you@example.com">
+            </div>
+            <div class="input-group">
+                <label for="password">Password</label>
+                <input type="password" id="password" class="input-field" placeholder="••••••••">
+            </div>
+            <button class="login-btn" id="submitBtn">Login</button>
+        </div>
+
+        <button class="toggle-auth" id="toggleAuthBtn">Don't have an account? Sign up</button>
+
+        <div class="footer">
+            Securely powered by Vertex AI & Cloud Firestore
+        </div>
+    </div>
+
+    <!-- Firebase SDKs -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.10.0/firebase-app.js";
+        import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/10.10.0/firebase-auth.js";
+
+        // CONFIG_PLACEHOLDER
+        console.log("Login page initialized with Firebase Config:", firebaseConfig);
+
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+
+        let isLogin = true;
+
+        const emailInput = document.getElementById('email');
+        const passwordInput = document.getElementById('password');
+        const submitBtn = document.getElementById('submitBtn');
+        const toggleAuthBtn = document.getElementById('toggleAuthBtn');
+        const authTitle = document.getElementById('auth-title');
+        const authSubtitle = document.getElementById('auth-subtitle');
+
+        toggleAuthBtn.addEventListener('click', () => {
+            isLogin = !isLogin;
+            authTitle.textContent = isLogin ? 'Login' : 'Sign Up';
+            authSubtitle.textContent = isLogin ? 'Welcome back! Please enter your details.' : 'Start your health journey today.';
+            submitBtn.textContent = isLogin ? 'Login' : 'Sign Up';
+            toggleAuthBtn.textContent = isLogin ? "Don't have an account? Sign up" : "Already have an account? Login";
+        });
+
+        submitBtn.addEventListener('click', async () => {
+            const email = emailInput.value;
+            const password = passwordInput.value;
+
+            if (!email || !password) {
+                alert("Please fill in all fields.");
+                return;
+            }
+
+            try {
+                if (isLogin) {
+                    await signInWithEmailAndPassword(auth, email, password);
+                } else {
+                    await createUserWithEmailAndPassword(auth, email, password);
+                }
+                window.location.href = '/';
+            } catch (error) {
+                console.error("Auth error:", error);
+                alert(error.message);
+            }
+        });
+    </script>
 </body>
+
 </html>
