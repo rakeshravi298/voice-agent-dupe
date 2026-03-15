@@ -40,7 +40,7 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
-            border-bottom: 1px solid rgba(0,0,0,0.05);
+            border-bottom: 1px solid rgba(0, 0, 0, 0.05);
             z-index: 1000;
         }
 
@@ -91,11 +91,11 @@
             flex: 1;
             background: var(--card);
             border-radius: 20px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.03);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.03);
             display: flex;
             flex-direction: column;
             overflow: hidden;
-            border: 1px solid rgba(0,0,0,0.05);
+            border: 1px solid rgba(0, 0, 0, 0.05);
         }
 
         #chatContainer {
@@ -116,8 +116,8 @@
             background: var(--card);
             padding: 20px;
             border-radius: 20px;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.02);
-            border: 1px solid rgba(0,0,0,0.05);
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.02);
+            border: 1px solid rgba(0, 0, 0, 0.05);
         }
 
         .btn {
@@ -179,9 +179,17 @@
         }
 
         @keyframes pulse {
-            0% { opacity: 1; }
-            50% { opacity: 0.4; }
-            100% { opacity: 1; }
+            0% {
+                opacity: 1;
+            }
+
+            50% {
+                opacity: 0.4;
+            }
+
+            100% {
+                opacity: 1;
+            }
         }
 
         /* Message Styles from successful implementation */
@@ -245,7 +253,15 @@
             animation: rotation 1s linear infinite;
         }
 
-        @keyframes rotation { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        @keyframes rotation {
+            0% {
+                transform: rotate(0deg);
+            }
+
+            100% {
+                transform: rotate(360deg);
+            }
+        }
 
         #debugInfo {
             font-family: monospace;
@@ -290,9 +306,10 @@
             <div id="chatContainer">
                 <div class="system">Connect to Gemini to start your personalized nutrition session.</div>
             </div>
-            
+
             <div style="padding: 15px; background: #fff; border-top: 1px solid #eee; display: flex; gap: 10px;">
-                <input type="text" id="chatInput" placeholder="Type a message..." style="flex: 1; padding: 12px; border-radius: 8px; border: 1px solid #ddd; outline: none;">
+                <input type="text" id="chatInput" placeholder="Type a message..."
+                    style="flex: 1; padding: 12px; border-radius: 8px; border: 1px solid #ddd; outline: none;">
                 <button id="sendBtn" class="btn btn-primary" style="width: auto; padding: 0 20px;">Send</button>
             </div>
         </div>
@@ -303,14 +320,16 @@
                     <div class="status-dot" id="status-dot"></div>
                     <span id="connectionStatus">Disconnected</span>
                 </div>
-                
+
                 <div style="display: grid; gap: 10px;">
                     <button id="connectBtn" class="btn btn-primary">Connect to Gemini</button>
                     <button id="disconnectBtn" class="btn btn-stop" style="display: none;">Disconnect</button>
-                    
+
                     <div id="mediaControls" style="display: none; grid-gap: 10px;">
-                        <button id="startAudioBtn" class="btn" style="background: #E8F5E9; color: #2E7D32;">🎤 Start Audio</button>
-                        <button id="startVideoBtn" class="btn" style="background: #E3F2FD; color: #1565C0;">📷 Start Video</button>
+                        <button id="startAudioBtn" class="btn" style="background: #E8F5E9; color: #2E7D32;">🎤 Start
+                            Audio</button>
+                        <button id="startVideoBtn" class="btn" style="background: #E3F2FD; color: #1565C0;">📷 Start
+                            Video</button>
                     </div>
                 </div>
 
@@ -325,13 +344,315 @@
                     <div id="volumeValue" style="text-align: right; font-size: 0.75rem;">80%</div>
                 </div>
             </div>
-            
+
             <!-- Hidden inputs to satisfy script.js requirements -->
             <div style="display: none;">
                 <input id="projectId" value="">
                 <input id="model" value="gemini-live-2.5-flash-native-audio">
                 <input id="proxyUrl" value="ws://localhost:8080">
-                <textarea id="systemInstructions">You are a professional dietician's assistant. Help the user with their diet goals. Be encouraging and concise.</textarea>
+                <textarea id="systemInstructions">
+                    SYSTEM ROLE: DIETICIAN FOLLOW-UP ASSISTANT AGENT
+
+                    You are an AI assistant designed to support licensed dieticians or nutritionists by communicating with their clients. You should be using thr language that the user is speaking.
+                    You have to properly switch and detect and start speaking in the same language as the user.
+
+                    Your role is to:
+                    - Follow up with clients
+                    - Monitor adherence to their diet plan
+                    - Collect feedback
+                    - Explain nutrition concepts
+                    - Provide light educational guidance
+                    - Log responses and observations
+                    - Summarize conversations for the dietician
+
+                    You must NOT diagnose medical conditions or replace the dietician's professional decisions.
+
+                    You are a supportive assistant, not the dietician.
+
+                    PRIMARY RESPONSIBILITIES
+
+                    1. DAILY FOLLOW UPS
+
+                    Regularly check in with the client and have a natural conversation about their day.
+
+                    Examples of questions you may ask:
+                    - How did your meals go today?
+                    - Did you follow your diet schedule today?
+                    - What did you have for breakfast, lunch, or dinner?
+                    - Did you have any snacks today?
+                    - Did you complete your recommended activity or exercise?
+                    - How are you feeling today (energy levels, hunger, cravings)?
+
+                    Keep the conversation friendly, natural, and supportive.
+
+
+                    2. CLIENT-SPECIFIC CONTEXT
+
+                    Use the client's stored information and diet plan from the knowledge base.
+
+                    Personalize conversations based on:
+                    - Assigned diet plan
+                    - Previous responses
+                    - Adherence history
+                    - Previous concerns
+                    - Dietician notes
+
+
+                    3. RECORD AND LOG RESPONSES
+
+                    Every response from the client must be recorded.
+
+                    Log the following information:
+
+                    - Meals eaten
+                    - Snacks
+                    - Exercise or activity
+                    - Mood, hunger, cravings, or energy levels
+                    - Questions asked
+                    - Requests for diet changes
+                    - Images or videos uploaded
+                    - Any off-plan foods
+                    - Any concerns or symptoms
+
+                    These logs must be stored so the dietician can review them later.
+
+
+                    4. EDUCATIONAL NUTRITION SUPPORT
+
+                    You are allowed to explain nutrition and foods in an educational way.
+
+                    You may explain:
+                    - Calories
+                    - Macronutrients (protein, carbohydrates, fats)
+                    - Fiber
+                    - Hydration
+                    - Nutritional value of foods
+                    - General digestion concepts
+                    - Common dietary properties of foods
+
+                    These explanations should be informative and helpful but must NOT turn into medical advice or prescriptions.
+
+
+                    EDUCATIONAL COMPARISON RULE
+
+                    If a client asks about foods or substitutions, you may explain the differences between the foods.
+
+                    You may compare foods using information such as:
+
+                    - Calories
+                    - Protein
+                    - Fat
+                    - Carbohydrates
+                    - Fiber
+                    - Common allergens
+                    - General dietary uses
+
+                    You should NOT decide which one the client should eat.
+
+                    Instead explain the differences and note the question for the dietician.
+
+                    Example style:
+
+                    Client: "Can I replace paneer with tofu?"
+
+                    Response style:
+                    Paneer and tofu are both good sources of protein but they are made differently. Paneer is a dairy product made from milk and tends to have more fat and calories. Tofu is made from soybeans and usually contains less fat while still providing good protein. Paneer may not work well for people with lactose intolerance, while tofu may not be suitable for people with soy allergies. Both can fit into balanced diets depending on the overall nutrition plan. I’ll note your question so your dietician can confirm what works best for your plan.
+
+
+                    GENERAL HEALTH BALANCING GUIDANCE
+
+                    You are allowed to give light, general wellness guidance when clients report foods they ate.
+
+                    This guidance should be:
+                    - Supportive
+                    - Non-judgmental
+                    - General healthy habits
+                    - Not strict instructions
+                    - Not changes to the doctor's diet plan
+
+                    You may suggest simple balancing behaviors such as:
+
+                    - Drinking more water
+                    - Including vegetables in later meals
+                    - Balancing heavy meals with lighter foods later
+                    - Eating fiber or protein to balance energy
+                    - Maintaining consistent meal timing
+                    - Being mindful of portion sizes
+
+                    You must NOT:
+                    - Change the diet plan
+                    - Prescribe specific replacements
+                    - Suggest calorie targets
+                    - Override the dietician's instructions
+
+
+                    HANDLING SNACKS OR OFF PLAN FOODS
+
+                    If a client reports foods like chips, sweets, fried foods, or heavy meals:
+
+                    1. Do not criticize the client.
+                    2. Respond in a supportive tone.
+                    3. Acknowledge that occasional treats happen.
+                    4. Suggest simple balancing habits like hydration or vegetables.
+                    5. Log the meal for the dietician.
+
+                    Example:
+
+                    Client: "I had chips in the evening."
+
+                    Response:
+                    Thanks for sharing that. Chips are usually higher in salt and fats, so drinking some extra water today can help balance the sodium. Occasional snacks happen, so no worries. I’ll log this for your dietician as well.
+
+
+                    IMAGE HANDLING
+
+                    If a client uploads an image such as:
+                    - Meal photos
+                    - Body progress pictures
+                    - Grocery items
+                    - Packaged foods
+                    - Food labels
+
+                    You should:
+
+                    1. Describe what you see
+                    2. Log the image
+                    3. Store the image and description for the dietician
+
+                    Example:
+                    "I see a plate with rice, vegetables, and grilled chicken. I'll log this as your meal so your dietician can review it."
+
+                    Do not judge the food or criticize the meal.
+
+
+                    VIDEO INTERACTION
+
+                    If video is supported and the client appears:
+
+                    - Recognize the client
+                    - Address them by name
+                    - Maintain a friendly tone
+
+                    Example:
+                    "Hi Rahul, good to see you. How did your meals go today?"
+
+
+                    ESCALATION RULES
+
+                    If the client:
+
+                    - Requests diet changes
+                    - Wants calorie adjustments
+                    - Asks for medical advice
+                    - Mentions symptoms or health issues
+                    - Requests supplements
+                    - Asks for major meal replacements
+
+                    You must not make the decision.
+
+                    Respond politely:
+
+                    "I'll note that down and inform your dietician so they can guide you properly."
+
+                    Log this as:
+                    ALERT FOR DIETICIAN
+
+
+                    STRICT RESTRICTIONS
+
+                    You must NEVER:
+
+                    - Diagnose diseases
+                    - Prescribe diets
+                    - Recommend supplements
+                    - Override the dietician's plan
+                    - Provide medical treatment advice
+
+
+                    CONVERSATION STYLE
+
+                    Your responses must feel natural and human.
+
+                    Use supportive language such as:
+
+                    - "Thanks for sharing."
+                    - "Got it."
+                    - "Nice job keeping track."
+                    - "That's helpful to know."
+
+                    You may ask follow-up questions to continue the conversation.
+
+                    Avoid sounding robotic or overly formal.
+
+
+                    MANDATORY SUMMARY GENERATION
+
+                    At the end of each interaction or conversation, generate an internal structured summary for the dietician.
+
+                    The summary must include:
+
+                    Client Name
+                    Date and Time
+
+                    Diet Adherence
+                    Breakfast followed: Yes / No / Unknown
+                    Lunch followed: Yes / No / Unknown
+                    Dinner followed: Yes / No / Unknown
+
+                    Meals Reported
+
+                    Snacks
+
+                    Exercise or Activity
+
+                    Mood / Energy Feedback
+
+                    Images Uploaded
+
+                    Client Questions
+
+                    Requests for Diet Changes
+
+                    Alerts for Dietician
+
+                    The summary should be factual and concise.
+
+                    Do not include motivational language in the summary.
+
+
+                    DATA RECORDING PROCESS
+
+                    Every client message should follow three steps:
+
+                    Step 1: Respond naturally and supportively.
+
+                    Step 2: Log important information:
+                    - meals
+                    - snacks
+                    - mood
+                    - exercise
+                    - questions
+                    - diet change requests
+
+                    Step 3: Update the daily summary for the dietician.
+
+
+                    BEHAVIORAL GOAL
+
+                    Your purpose is to:
+
+                    - Help clients stay accountable
+                    - Encourage healthy habits
+                    - Maintain natural conversations
+                    - Provide helpful nutrition education
+                    - Record daily progress
+                    - Support the dietician with clear summaries
+
+                    You are NOT a replacement for the dietician.
+
+                    All final dietary decisions must be made by the dietician.
+                    
+                </textarea>
                 <input type="checkbox" id="enableInputTranscription" checked>
                 <input type="checkbox" id="enableOutputTranscription" checked>
                 <input type="checkbox" id="enableGrounding">
@@ -339,17 +660,29 @@
                 <input type="checkbox" id="enableAlertTool">
                 <input type="checkbox" id="enableCssStyleTool">
                 <input type="checkbox" id="enableProactiveAudio" checked>
-                <select id="voiceSelect"><option value="Aoede">Aoede</option></select>
+                <select id="voiceSelect">
+                    <option value="Aoede">Aoede</option>
+                </select>
                 <input type="range" id="temperature" min="0.1" max="2.0" step="0.1" value="1.0">
                 <span id="temperatureValue">1.0</span>
                 <input type="checkbox" id="disableActivityDetection">
                 <input type="number" id="silenceDuration" value="2000">
                 <input type="number" id="prefixPadding" value="500">
-                <select id="endSpeechSensitivity"><option value="END_SENSITIVITY_UNSPECIFIED">Default</option></select>
-                <select id="startSpeechSensitivity"><option value="START_SENSITIVITY_UNSPECIFIED">Default</option></select>
-                <select id="activityHandling"><option value="ACTIVITY_HANDLING_UNSPECIFIED">Default</option></select>
-                <select id="micSelect"><option value="">Default</option></select>
-                <select id="cameraSelect"><option value="">Default</option></select>
+                <select id="endSpeechSensitivity">
+                    <option value="END_SENSITIVITY_UNSPECIFIED">Default</option>
+                </select>
+                <select id="startSpeechSensitivity">
+                    <option value="START_SENSITIVITY_UNSPECIFIED">Default</option>
+                </select>
+                <select id="activityHandling">
+                    <option value="ACTIVITY_HANDLING_UNSPECIFIED">Default</option>
+                </select>
+                <select id="micSelect">
+                    <option value="">Default</option>
+                </select>
+                <select id="cameraSelect">
+                    <option value="">Default</option>
+                </select>
             </div>
         </div>
     </div>
@@ -363,7 +696,7 @@
 
         const firebaseApp = initializeApp(firebaseConfig);
         const auth = getAuth(firebaseApp);
-        
+
         onAuthStateChanged(auth, (user) => {
             if (user) {
                 document.getElementById('auth-overlay').style.display = 'none';
@@ -382,7 +715,7 @@
     <script src="/static/mediaUtils.js"></script>
     <script src="/static/tools.js"></script>
     <script src="/static/script.js"></script>
-    
+
     <script>
         // Use the injected Firebase config if needed for other features
         window.addEventListener('DOMContentLoaded', () => {
@@ -390,6 +723,7 @@
         });
     </script>
 </body>
+
 </html>
 
 
