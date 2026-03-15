@@ -11,6 +11,11 @@ from aiohttp import web
 from google.auth.transport.requests import Request
 from websockets.exceptions import ConnectionClosed
 from dotenv import load_dotenv
+from google import genai
+from google.genai import types
+from google.cloud import firestore
+from google.cloud.firestore_v1.vector import Vector
+from google.cloud.firestore_v1.base_vector_query import DistanceMeasure
 
 load_dotenv()
 
@@ -132,9 +137,165 @@ async def handle_http(request):
 
     return web.Response(text=f"Not Found: {target}", status=404)
 
+async def handle_summarize(request):
+    try:
+        data = await request.json()
+        history = data.get("history", [])
+        user_email = data.get("userEmail", "anonymous").replace("@", "_at_").replace(".", "_")
+        project_id = os.getenv("FIREBASE_PROJECT_ID")
+        
+        if not history:
+            return web.json_response({"summary": "No conversation history found to summarize."})
+
+        # Format history for the prompt
+        formatted_history = ""
+        for item in history:
+            role = "User" if item['role'] == 'user' else "Vitality AI"
+            formatted_history += f"{role}: {item['text']}\n"
+        
+        # Initialize GenAI Client for Vertex AI
+        client = genai.Client(vertexai=True, project=project_id, location="us-central1")
+        
+        prompt = f"""
+        Summarize the following dietitian assistant session. 
+        Focus on:
+        1. Main concerns/questions from the user.
+        2. Key nutritional advice provided.
+        3. Actionable next steps or goals.
+        
+        Keep it concise, supportive, and formatted with markdown.
+
+        Conversation:
+        {formatted_history}
+        """
+        
+        response = client.models.generate_content(
+            model='gemini-2.5-flash',
+            contents=prompt
+        )
+        
+        summary_text = response.text
+        
+        # Save to local storage
+        from datetime import datetime
+        now = datetime.now()
+        date_str = now.strftime("%Y-%m-%d")
+        timestamp = now.strftime("%H:%M:%S")
+        
+        storage_dir = os.path.join("sessions", user_email)
+        os.makedirs(storage_dir, exist_ok=True)
+        
+        file_path = os.path.join(storage_dir, f"{date_str}.json")
+        
+        session_entry = {
+            "timestamp": timestamp,
+            "summary": summary_text,
+            "raw_history": history
+        }
+        
+        daily_record = []
+        if os.path.exists(file_path):
+            try:
+                with open(file_path, "r", encoding="utf-8") as f:
+                    daily_record = json.load(f)
+            except: daily_record = []
+            
+        daily_record.append(session_entry)
+        
+        with open(file_path, "w", encoding="utf-8") as f:
+            json.dump(daily_record, f, indent=4, ensure_ascii=False)
+            
+        return web.json_response({"summary": summary_text})
+    except Exception as e:
+        print(f"❌ Summarization Error: {e}")
+        return web.json_response({"error": str(e)}, status=500)
+
+async def handle_index_record(request):
+    try:
+        data = await request.json()
+        user_email = data.get("userEmail", "anonymous").replace("@", "_at_").replace(".", "_")
+        text_content = data.get("text", "")
+        title = data.get("title", "Untitled Record")
+        project_id = os.getenv("FIREBASE_PROJECT_ID")
+
+        if not text_content:
+            return web.json_response({"error": "No content to index"}, status=400)
+
+        # 1. Generate Embedding
+        client = genai.Client(vertexai=True, project=project_id, location="us-central1")
+        embed_resp = client.models.embed_content(
+            model='text-embedding-004',
+            contents=text_content,
+            config=types.EmbedContentConfig(task_type="RETRIEVAL_DOCUMENT")
+        )
+        embedding = embed_resp.embeddings[0].values
+
+        # 2. Store in Firestore
+        db = firestore.AsyncClient(project=project_id)
+        doc_ref = db.collection("users").document(user_email).collection("records").document()
+        
+        await doc_ref.set({
+            "title": title,
+            "content": text_content,
+            "embedding": Vector(embedding),
+            "timestamp": firestore.SERVER_TIMESTAMP
+        })
+
+        return web.json_response({"status": "indexed", "id": doc_ref.id})
+    except Exception as e:
+        print(f"❌ Indexing Error: {e}")
+        return web.json_response({"error": str(e)}, status=500)
+
+async def handle_query_records(request):
+    try:
+        data = await request.json()
+        user_email = data.get("userEmail", "anonymous").replace("@", "_at_").replace(".", "_")
+        query = data.get("query", "")
+        project_id = os.getenv("FIREBASE_PROJECT_ID")
+
+        if not query:
+            return web.json_response({"results": []})
+
+        # 1. Embed Query
+        client = genai.Client(vertexai=True, project=project_id, location="us-central1")
+        embed_resp = client.models.embed_content(
+            model='text-embedding-004',
+            contents=query,
+            config=types.EmbedContentConfig(task_type="RETRIEVAL_QUERY")
+        )
+        query_vector = embed_resp.embeddings[0].values
+
+        # 2. Vector Search in Firestore
+        db = firestore.AsyncClient(project=project_id)
+        collection_ref = db.collection("users").document(user_email).collection("records")
+        
+        # Firestore Vector Search (KNN)
+        results = []
+        docs = collection_ref.find_nearest(
+            vector_field="embedding",
+            query_vector=Vector(query_vector),
+            distance_measure=DistanceMeasure.COSINE,
+            limit=3
+        )
+        
+        async for doc in docs.stream():
+            d = doc.to_dict()
+            results.append({
+                "title": d.get("title"),
+                "content": d.get("content")
+            })
+
+        return web.json_response({"results": results})
+    except Exception as e:
+        print(f"❌ Query Error: {e}")
+        return web.json_response({"error": str(e)}, status=500)
+
 async def start_servers():
     app = web.Application()
     app.router.add_get("/{path:.*}", handle_http)
+    app.router.add_post("/summarize", handle_summarize)
+    app.router.add_post("/index_record", handle_index_record)
+    app.router.add_post("/query_records", handle_query_records)
     runner = web.AppRunner(app)
     await runner.setup()
     await web.TCPSite(runner, "0.0.0.0", HTTP_PORT).start()

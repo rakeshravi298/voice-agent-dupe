@@ -26,32 +26,30 @@ class MultimodalLiveResponseMessage {
     this.endOfTurn = false;
 
     console.log("raw message data: ", data);
-    const serverContent = data?.serverContent || data?.server_content;
-    const modelTurn = serverContent?.modelTurn || serverContent?.model_turn;
-    const parts = modelTurn?.parts;
-    
-    this.endOfTurn = serverContent?.turnComplete || serverContent?.turn_complete;
+    this.endOfTurn = data?.serverContent?.turnComplete || data?.server_content?.turn_complete;
+
+    const parts = (data?.serverContent?.modelTurn?.parts) || (data?.server_content?.model_turn?.parts);
 
     try {
       if (data?.setupComplete || data?.setup_complete) {
         console.log("🏁 SETUP COMPLETE response", data);
         this.type = MultimodalLiveResponseType.SETUP_COMPLETE;
-      } else if (serverContent?.turnComplete || serverContent?.turn_complete) {
+      } else if (data?.serverContent?.turnComplete || data?.server_content?.turn_complete) {
         console.log("🏁 TURN COMPLETE response");
         this.type = MultimodalLiveResponseType.TURN_COMPLETE;
-      } else if (serverContent?.interrupted) {
+      } else if (data?.serverContent?.interrupted || data?.server_content?.interrupted) {
         console.log("🗣️ INTERRUPTED response");
         this.type = MultimodalLiveResponseType.INTERRUPTED;
-      } else if (serverContent?.inputTranscription || serverContent?.input_audio_transcription) {
-        const it = serverContent?.inputTranscription || serverContent?.input_audio_transcription;
+      } else if (data?.serverContent?.inputTranscription || data?.server_content?.input_audio_transcription) {
+        const it = data?.serverContent?.inputTranscription || data?.server_content?.input_audio_transcription;
         console.log("📝 INPUT TRANSCRIPTION:", it);
         this.type = MultimodalLiveResponseType.INPUT_TRANSCRIPTION;
         this.data = {
           text: it.text || "",
           finished: it.finished || false,
         };
-      } else if (serverContent?.outputTranscription || serverContent?.output_audio_transcription) {
-        const ot = serverContent?.outputTranscription || serverContent?.output_audio_transcription;
+      } else if (data?.serverContent?.outputTranscription || data?.server_content?.output_audio_transcription) {
+        const ot = data?.serverContent?.outputTranscription || data?.server_content?.output_audio_transcription;
         console.log("📝 OUTPUT TRANSCRIPTION:", ot);
         this.type = MultimodalLiveResponseType.OUTPUT_TRANSCRIPTION;
         this.data = {
@@ -62,18 +60,22 @@ class MultimodalLiveResponseMessage {
         console.log("🎯 🛠️ TOOL CALL response", data?.toolCall || data?.tool_call);
         this.type = MultimodalLiveResponseType.TOOL_CALL;
         this.data = data?.toolCall || data?.tool_call;
+        // Normalize function calls to always be available as functionCalls (camelCase)
+        if (this.data && (this.data.function_calls || this.data.functionCalls)) {
+          this.data.functionCalls = this.data.functionCalls || this.data.function_calls;
+        }
       } else if (parts?.length && parts[0].text) {
         console.log("💬 TEXT response", parts[0].text);
         this.data = parts[0].text;
         this.type = MultimodalLiveResponseType.TEXT;
-      } else if (parts?.length && parts[0].inlineData || parts?.length && parts[0].inline_data) {
+      } else if (parts?.length && (parts[0].inlineData || parts[0].inline_data)) {
         const id = parts[0].inlineData || parts[0].inline_data;
         console.log("🔊 AUDIO response");
         this.data = id.data;
         this.type = MultimodalLiveResponseType.AUDIO;
       }
-    } catch (e) {
-      console.log("⚠️ Error parsing response data: ", e, data);
+    } catch {
+      console.log("⚠️ Error parsing response data: ", data);
     }
   }
 }
@@ -103,13 +105,13 @@ class FunctionCallDefinition {
     return definition;
   }
 
-  runFunction(parameters) {
+  async runFunction(parameters, context) {
     console.log(
       `⚡ Running ${this.name} function with parameters: ${JSON.stringify(
         parameters
       )}`
     );
-    this.functionToCall(parameters);
+    return await this.functionToCall(parameters, context);
   }
 }
 
@@ -223,9 +225,11 @@ class GeminiLiveAPI {
     console.log("added function: ", newFunction);
   }
 
-  callFunction(functionName, parameters) {
+  async callFunction(functionName, parameters, context) {
     const functionToCall = this.functionsMap[functionName];
-    functionToCall.runFunction(parameters);
+    if (functionToCall) {
+        return await functionToCall.runFunction(parameters, context);
+    }
   }
 
   connect() {
@@ -381,8 +385,12 @@ class GeminiLiveAPI {
   sendToolResponse(toolCallId, response) {
     const message = {
       tool_response: {
-        id: toolCallId,
-        response: response,
+        function_responses: [
+          {
+            id: toolCallId,
+            response: response,
+          },
+        ],
       },
     };
     console.log("🔧 Sending tool response:", message);

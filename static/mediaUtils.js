@@ -255,6 +255,14 @@ class AudioPlayer {
       const inputArray = new Int16Array(bytes.buffer);
       const float32Data = new Float32Array(inputArray.length);
       for (let i = 0; i < inputArray.length; i++) float32Data[i] = inputArray[i] / 32768;
+      
+      // Update visualizer if it exists
+      if (window.updateVisualizer) {
+          window.updateVisualizer(float32Data);
+          // Reset visualizer after chunk duration (approx)
+          setTimeout(() => window.updateVisualizer([]), 100);
+      }
+      
       this.workletNode.port.postMessage(float32Data);
     } catch (e) { throw e; }
   }

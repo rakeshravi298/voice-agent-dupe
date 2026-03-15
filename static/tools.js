@@ -104,3 +104,65 @@ class AddCSSStyleTool extends FunctionCallDefinition {
     console.log(`   Applied to ${document.querySelectorAll(selector).length} element(s)`);
   }
 }
+
+/**
+ * Search Health Records Tool
+ * Semantically searches through indexed health documents and diet plans
+ */
+class SearchHealthRecordsTool extends FunctionCallDefinition {
+  constructor() {
+    super(
+      "search_health_records",
+      "Searches through the user's uploaded medical records, diet plans, and health history using semantic search. Use this when the user asks about their specific health history or previously provided documents.",
+      {
+        type: "object",
+        properties: {
+          query: {
+            type: "string",
+            description: "The health-related query or topic to search for (e.g., 'What are my allergies?', 'Show me my last blood test results')"
+          }
+        }
+      },
+      ["query"]
+    );
+  }
+
+  async functionToCall(parameters, context) {
+    const { query } = parameters;
+    const { userEmail, callId, client } = context;
+
+    console.log(`🔍 Searching health records for: "${query}"`);
+
+    try {
+        const response = await fetch('/query_records', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ query, userEmail })
+        });
+
+        const data = await response.json();
+        const results = data.results || [];
+
+        let toolResponse;
+        if (results.length === 0) {
+            toolResponse = "No relevant health records found for this query.";
+        } else {
+            toolResponse = "Relevant information found in your records:\n" + 
+                results.map(r => `--- ${r.title} ---\n${r.content}`).join("\n\n");
+        }
+
+        // Send the response back to Gemini Live
+        if (client && callId) {
+            client.sendToolResponse(callId, { output: toolResponse });
+            console.log("✅ Tool response sent to Gemini");
+        }
+
+        return toolResponse;
+    } catch (error) {
+        console.error("❌ Search Tool Error:", error);
+        if (client && callId) {
+            client.sendToolResponse(callId, { error: error.message });
+        }
+    }
+  }
+}

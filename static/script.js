@@ -9,6 +9,9 @@ const state = {
   audio: { streamer: null, player: null, isStreaming: false },
   video: { streamer: null, isStreaming: false },
   screen: { capture: null, isSharing: false },
+  history: [],
+  isSummarizing: false,
+  currentTurn: { role: null, text: "" }
 };
 
 // DOM element cache
@@ -27,6 +30,10 @@ function initDOM() {
     "enableAffectiveDialog",
     "enableAlertTool",
     "enableCssStyleTool",
+    "enableHealthSearchTool",
+    "indexDocBtn",
+    "docTitle",
+    "docContent",
     "enableProactiveAudio",
     "voiceSelect",
     "temperature",
@@ -54,6 +61,9 @@ function initDOM() {
     "debugInfo",
     "setupJsonSection",
     "setupJsonDisplay",
+    "summarizeBtn",
+    "summaryContainer",
+    "summaryContent"
   ];
 
   ids.forEach((id) => {
@@ -180,6 +190,13 @@ async function connect() {
         state.client.addFunction(cssStyleTool);
         console.log("✅ CSS style tool enabled");
       }
+
+      // Add health search tool if enabled
+      if (elements.enableHealthSearchTool && elements.enableHealthSearchTool.checked) {
+        const healthTool = new SearchHealthRecordsTool();
+        state.client.addFunction(healthTool);
+        console.log("✅ Health search tool (RAG) enabled");
+      }
     } else {
       console.log(
         "⚠️ Custom tools disabled due to Google grounding being enabled"
@@ -249,6 +266,9 @@ function handleMessage(message) {
     case MultimodalLiveResponseType.TEXT:
       console.log("Text message:");
       addMessage(message.data, "assistant");
+      // For immediate text responses, push to history and reset current turn
+      state.history.push({ role: 'assistant', text: message.data });
+      state.currentTurn = { role: null, text: "" };
       break;
 
     case MultimodalLiveResponseType.AUDIO:
@@ -259,17 +279,27 @@ function handleMessage(message) {
       break;
 
     case MultimodalLiveResponseType.INPUT_TRANSCRIPTION:
-      console.log("Input transcription:", message.data);
-      if (!message.data.finished) {
-        addMessage(message.data.text, "user-transcript", (append = true));
+      // Show progressive transcript in UI
+      addMessage(message.data.text, "user-transcript", true);
+      
+      // Accumulate for history
+      if (state.currentTurn.role !== 'user') {
+        finalizeCurrentTurn();
+        state.currentTurn = { role: 'user', text: "" };
       }
+      state.currentTurn.text += message.data.text;
       break;
 
     case MultimodalLiveResponseType.OUTPUT_TRANSCRIPTION:
-      console.log("Output transcription:", message.data);
-      if (!message.data.finished) {
-        addMessage(message.data.text, "assistant", (append = true));
+      // Show progressive transcript in UI
+      addMessage(message.data.text, "assistant", true);
+      
+      // Accumulate for history
+      if (state.currentTurn.role !== 'assistant') {
+        finalizeCurrentTurn();
+        state.currentTurn = { role: 'assistant', text: "" };
       }
+      state.currentTurn.text += message.data.text;
       break;
 
     case MultimodalLiveResponseType.SETUP_COMPLETE:
@@ -291,22 +321,22 @@ function handleMessage(message) {
 
     case MultimodalLiveResponseType.TOOL_CALL:
       console.log("🛠️ Tool call received: ", message.data);
-      const functionCalls = message.data.functionCalls;
-      for (let index = 0; index < functionCalls.length; index++) {
-        const functionCall = functionCalls[index];
-        const functionName = functionCall.name;
-        const parameters = functionCall.args;
-        console.log(
-          `Calling function ${functionName} with parameters: ${JSON.stringify(
-            parameters
-          )}`
-        );
-        state.client.callFunction(functionName, parameters);
+      const functionCalls = message.data.functionCalls || [];
+      const userEmail = document.getElementById('userEmailFull').value;
+      
+      for (const call of functionCalls) {
+        const context = {
+            userEmail,
+            callId: call.id,
+            client: state.client
+        };
+        state.client.callFunction(call.name, call.args, context);
       }
       break;
 
     case MultimodalLiveResponseType.TURN_COMPLETE:
-      console.log("Turn complete:", message.data);
+      console.log("Turn complete");
+      finalizeCurrentTurn();
       updateStatus("debugInfo", "Turn complete");
       break;
 
@@ -323,6 +353,7 @@ function handleOpen() {
   updateStatus("connectionStatus", "Connected");
   if (elements.connectBtn) elements.connectBtn.style.display = "none";
   if (elements.disconnectBtn) elements.disconnectBtn.style.display = "block";
+  if (elements.summarizeBtn) elements.summarizeBtn.style.display = "block";
   const mediaControls = document.getElementById('mediaControls');
   if (mediaControls) mediaControls.style.display = "grid";
 }
@@ -333,6 +364,12 @@ function handleClose() {
   if (elements.disconnectBtn) elements.disconnectBtn.style.display = "none";
   const mediaControls = document.getElementById('mediaControls');
   if (mediaControls) mediaControls.style.display = "none";
+  
+  // Keep summarizeBtn visible if there's history, otherwise hide it
+  if (elements.summarizeBtn && state.history.length === 0) {
+      elements.summarizeBtn.style.display = "none";
+  }
+  
   disconnect();
 }
 
@@ -356,9 +393,9 @@ async function toggleAudio() {
         const selectedMicId = elements.micSelect.value;
         await state.audio.streamer.start(selectedMicId);
         state.audio.isStreaming = true;
-        elements.startAudioBtn.textContent = "Stop Audio";
-        elements.startAudioBtn.style.background = "#FF7675";
-        elements.startAudioBtn.style.color = "white";
+        elements.startAudioBtn.innerHTML = '<span style="font-size: 1.2rem;">🛑</span> Stop Voice Proxy';
+        elements.startAudioBtn.style.background = "rgba(255, 118, 117, 0.1)";
+        elements.startAudioBtn.style.color = "#FF7675";
         addMessage("[Microphone on]", "system");
         console.log("🎤 Audio streamer started successfully");
       } else {
@@ -372,9 +409,9 @@ async function toggleAudio() {
   } else {
     if (state.audio.streamer) state.audio.streamer.stop();
     state.audio.isStreaming = false;
-    elements.startAudioBtn.textContent = "Start Audio";
-    elements.startAudioBtn.style.background = "#E8F5E9";
-    elements.startAudioBtn.style.color = "#2E7D32";
+    elements.startAudioBtn.innerHTML = '<span style="font-size: 1.2rem;">🎙️</span> Start Voice Proxy';
+    elements.startAudioBtn.style.background = "rgba(255, 255, 255, 0.03)";
+    elements.startAudioBtn.style.color = "var(--text-main)";
     addMessage("[Microphone off]", "system");
   }
 }
@@ -401,9 +438,10 @@ async function toggleVideo() {
 
         elements.videoPreview.srcObject = video.srcObject;
         elements.videoPreview.hidden = false;
-        elements.startVideoBtn.textContent = "Stop Video";
-        elements.startVideoBtn.style.background = "#FF7675";
-        elements.startVideoBtn.style.color = "white";
+        if (document.getElementById('camera-placeholder')) document.getElementById('camera-placeholder').style.display = 'none';
+        elements.startVideoBtn.innerHTML = '<span style="font-size: 1.2rem;">✖</span> Stop Analysis';
+        elements.startVideoBtn.style.background = "rgba(255, 118, 117, 0.1)";
+        elements.startVideoBtn.style.color = "#FF7675";
         addMessage("[Camera on]", "system");
       } else {
         addMessage("[Connect to Gemini first]", "system");
@@ -417,9 +455,10 @@ async function toggleVideo() {
 
     elements.videoPreview.srcObject = null;
     elements.videoPreview.hidden = true;
-    elements.startVideoBtn.textContent = "Start Video";
-    elements.startVideoBtn.style.background = "#E3F2FD";
-    elements.startVideoBtn.style.color = "#1565C0";
+    if (document.getElementById('camera-placeholder')) document.getElementById('camera-placeholder').style.display = 'block';
+    elements.startVideoBtn.innerHTML = '<span style="font-size: 1.2rem;">👁️</span> Analyze View';
+    elements.startVideoBtn.style.background = "rgba(255, 255, 255, 0.03)";
+    elements.startVideoBtn.style.color = "var(--text-main)";
     addMessage("[Camera off]", "system");
   }
 }
@@ -472,6 +511,8 @@ function sendMessage() {
 
   if (state.client) {
     addMessage(message, "user");
+    finalizeCurrentTurn();
+    state.history.push({ role: 'user', text: message });
     state.client.sendTextMessage(message);
     elements.chatInput.value = "";
   } else {
@@ -481,6 +522,8 @@ function sendMessage() {
 
 // Add message to chat
 function addMessage(text, type, append = false) {
+  if (!text) return;
+  
   // Get all div children (messages)
   const messages = elements.chatContainer.querySelectorAll("div");
   const lastMessage = messages[messages.length - 1];
@@ -496,6 +539,15 @@ function addMessage(text, type, append = false) {
   }
 
   elements.chatContainer.scrollTop = elements.chatContainer.scrollHeight;
+}
+
+// Finalize pending transcript into history
+function finalizeCurrentTurn() {
+    if (state.currentTurn.role && state.currentTurn.text.trim()) {
+        state.history.push({ ...state.currentTurn });
+        console.log("📁 Finalized turn in history:", state.currentTurn);
+    }
+    state.currentTurn = { role: null, text: "" };
 }
 
 // Update volume
@@ -514,6 +566,93 @@ function updateTemperature() {
   updateStatus("temperatureValue", value);
 }
 
+// Session Summarization
+async function summarizeSession() {
+    if (state.history.length === 0) {
+        alert("No conversation history to summarize.");
+        return;
+    }
+
+    if (state.isSummarizing) return;
+    
+    try {
+        state.isSummarizing = true;
+        elements.summarizeBtn.disabled = true;
+        elements.summarizeBtn.innerHTML = '<span class="spinner">⏳</span> Summarizing...';
+        
+        elements.summaryContainer.style.display = "block";
+        elements.summaryContent.innerHTML = "Generating your session summary...";
+
+        const userEmail = document.getElementById('userEmailFull').value;
+
+        const response = await fetch('/summarize', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ 
+                history: state.history,
+                userEmail: userEmail
+            })
+        });
+
+        const data = await response.json();
+        
+        if (data.summary) {
+            // Simple markdown to HTML conversion (basic)
+            elements.summaryContent.innerHTML = data.summary
+                .replace(/\n/g, '<br>')
+                .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+                .replace(/\*(.*?)\*/g, '<em>$1</em>');
+        } else {
+            elements.summaryContent.textContent = "Failed to generate summary: " + (data.error || "Unknown error");
+        }
+    } catch (error) {
+        console.error("Summarization Error:", error);
+        elements.summaryContent.textContent = "Error: " + error.message;
+    } finally {
+        state.isSummarizing = false;
+        elements.summarizeBtn.disabled = false;
+        elements.summarizeBtn.innerHTML = '<span style="font-size: 1.2rem;">📝</span> Summarize Session';
+    }
+}
+
+// Document Indexing (RAG)
+async function indexDocument() {
+    const title = elements.docTitle.value.trim();
+    const text = elements.docContent.value.trim();
+    const userEmail = document.getElementById('userEmailFull').value;
+
+    if (!text) {
+        alert("Please provide content to index.");
+        return;
+    }
+
+    try {
+        elements.indexDocBtn.disabled = true;
+        elements.indexDocBtn.textContent = "⚙️ Indexing...";
+        
+        const response = await fetch('/index_record', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ title, text, userEmail })
+        });
+
+        const data = await response.json();
+        if (data.status === "indexed") {
+            alert("Document indexed successfully! Vitality AI can now reference it.");
+            elements.docTitle.value = "";
+            elements.docContent.value = "";
+        } else {
+            alert("Indexing failed: " + (data.error || "Unknown error"));
+        }
+    } catch (error) {
+        console.error("Indexing error:", error);
+        alert("Error indexing document: " + error.message);
+    } finally {
+        elements.indexDocBtn.disabled = false;
+        elements.indexDocBtn.textContent = "Add to Memory";
+    }
+}
+
 // Event listeners
 function initEventListeners() {
   if (elements.connectBtn) elements.connectBtn.addEventListener("click", connect);
@@ -521,6 +660,8 @@ function initEventListeners() {
   if (elements.startAudioBtn) elements.startAudioBtn.addEventListener("click", toggleAudio);
   if (elements.startVideoBtn) elements.startVideoBtn.addEventListener("click", toggleVideo);
   if (elements.startScreenBtn) elements.startScreenBtn.addEventListener("click", toggleScreen);
+  if (elements.summarizeBtn) elements.summarizeBtn.addEventListener("click", summarizeSession);
+  if (elements.indexDocBtn) elements.indexDocBtn.addEventListener("click", indexDocument);
   if (elements.sendBtn) elements.sendBtn.addEventListener("click", sendMessage);
   if (elements.volume) elements.volume.addEventListener("input", updateVolume);
   if (elements.temperature) elements.temperature.addEventListener("input", updateTemperature);
