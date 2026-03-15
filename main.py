@@ -14,6 +14,7 @@ from dotenv import load_dotenv
 from google import genai
 from google.genai import types
 from google.cloud import firestore
+from google.cloud import storage
 from google.cloud.firestore_v1.vector import Vector
 from google.cloud.firestore_v1.base_vector_query import DistanceMeasure
 
@@ -176,16 +177,26 @@ async def handle_summarize(request):
         
         summary_text = response.text
         
-        # Save to local storage
+        # Save to Google Cloud Storage (GCS)
         from datetime import datetime
         now = datetime.now()
-        date_str = now.strftime("%Y-%m-%d")
+        year = now.strftime("%Y")
+        month = now.strftime("%m")
+        day = now.strftime("%d")
         timestamp = now.strftime("%H:%M:%S")
         
-        storage_dir = os.path.join("sessions", user_email)
-        os.makedirs(storage_dir, exist_ok=True)
+        # Determine bucket name
+        bucket_name = os.getenv("FIREBASE_STORAGE_BUCKET")
+        if not bucket_name:
+            # Fallback if not specified, often project-id.appspot.com
+            bucket_name = f"{project_id}.appspot.com"
+            
+        storage_client = storage.Client(project=project_id)
+        bucket = storage_client.bucket(bucket_name)
         
-        file_path = os.path.join(storage_dir, f"{date_str}.json")
+        # Partitioned Path: sessions/user@email.com/YYYY/MM/DD.json
+        blob_path = f"sessions/{user_email}/{year}/{month}/{day}.json"
+        blob = bucket.blob(blob_path)
         
         session_entry = {
             "timestamp": timestamp,
@@ -194,16 +205,21 @@ async def handle_summarize(request):
         }
         
         daily_record = []
-        if os.path.exists(file_path):
+        if blob.exists():
             try:
-                with open(file_path, "r", encoding="utf-8") as f:
-                    daily_record = json.load(f)
-            except: daily_record = []
+                content = blob.download_as_text()
+                daily_record = json.loads(content)
+            except Exception as e:
+                print(f"⚠️ Could not read existing GCS blob: {e}")
+                daily_record = []
             
         daily_record.append(session_entry)
         
-        with open(file_path, "w", encoding="utf-8") as f:
-            json.dump(daily_record, f, indent=4, ensure_ascii=False)
+        blob.upload_from_string(
+            data=json.dumps(daily_record, indent=4, ensure_ascii=False),
+            content_type='application/json'
+        )
+        print(f"✅ Session summary saved to GCS: gs://{bucket_name}/{blob_path}")
             
         return web.json_response({"summary": summary_text})
     except Exception as e:
