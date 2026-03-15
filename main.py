@@ -322,6 +322,46 @@ async def handle_summarize(request):
         print(f"❌ Summarization Error: {e}")
         return web.json_response({"error": str(e)}, status=500)
 
+async def handle_get_context(request):
+    try:
+        user_email = request.query.get("userEmail", "anonymous").replace("@", "_at_").replace(".", "_")
+        project_id = os.getenv("FIREBASE_PROJECT_ID")
+        
+        from datetime import datetime
+        now = datetime.now()
+        year = now.strftime("%Y")
+        month = now.strftime("%m")
+        day = now.strftime("%d")
+        
+        # Determine bucket name
+        bucket_name = os.getenv("FIREBASE_STORAGE_BUCKET")
+        if not bucket_name:
+            bucket_name = f"{project_id}.appspot.com"
+            
+        storage_client = storage.Client(project=project_id)
+        bucket = storage_client.bucket(bucket_name)
+        
+        # Path: sessions/user@email.com/YYYY/MM/DD.json
+        blob_path = f"sessions/{user_email}/{year}/{month}/{day}.json"
+        blob = bucket.blob(blob_path)
+        
+        context_text = ""
+        if blob.exists():
+            content = blob.download_as_text()
+            daily_record = json.loads(content)
+            
+            context_text = "\n--- CONTEXT FROM PREVIOUS SESSIONS TODAY ---\n"
+            for session in daily_record:
+                ts = session.get("timestamp", "N/A")
+                summary = session.get("summary", "")
+                context_text += f"\n[Session at {ts}]\n{summary}\n"
+            context_text += "\n--------------------------------------------\n"
+        
+        return web.json_response({"context": context_text})
+    except Exception as e:
+        print(f"❌ Get Context Error: {e}")
+        return web.json_response({"context": ""})
+
 async def handle_index_record(request):
     try:
         data = await request.json()
@@ -406,6 +446,7 @@ async def start_servers():
     app = web.Application()
     app.router.add_get("/{path:.*}", handle_http)
     app.router.add_post("/summarize", handle_summarize)
+    app.router.add_get("/get_session_context", handle_get_context)
     app.router.add_post("/index_record", handle_index_record)
     app.router.add_post("/query_records", handle_query_records)
     runner = web.AppRunner(app)

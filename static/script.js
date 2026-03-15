@@ -141,11 +141,25 @@ async function connect() {
   try {
     updateStatus("connectionStatus", "Connecting...");
 
+    // 1. Fetch Today's Session Context (Memory)
+    let contextData = "";
+    try {
+        const fullEmail = document.getElementById('userEmailFull').value;
+        const contextResp = await fetch(`/get_session_context?userEmail=${encodeURIComponent(fullEmail)}`);
+        const cJson = await contextResp.json();
+        contextData = cJson.context || "";
+        if (contextData) {
+            console.log("🧠 Context from previous sessions loaded");
+        }
+    } catch (e) {
+        console.warn("⚠️ Failed to fetch session context:", e);
+    }
+
     // Create GeminiLiveAPI instance directly
     state.client = new GeminiLiveAPI(proxyUrl, projectId, model);
 
-    // Configure settings
-    state.client.systemInstructions = elements.systemInstructions.value;
+    // Configure settings - Prepend context to instructions
+    state.client.systemInstructions = contextData + elements.systemInstructions.value;
     state.client.inputAudioTranscription =
       elements.enableInputTranscription.checked;
     state.client.outputAudioTranscription =
