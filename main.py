@@ -473,33 +473,51 @@ async def handle_summarize(request):
         storage_client = storage.Client(project=project_id)
         bucket = storage_client.bucket(bucket_name)
         
-        # Partitioned Path: sessions/user@email.com/YYYY/MM/DD.json
-        blob_path = f"sessions/{user_email}/{year}/{month}/{day}.json"
-        blob = bucket.blob(blob_path)
+        # Paths for split storage
+        summary_path = f"summaries/{user_email}/{year}/{month}/{day}.json"
+        history_path = f"raw_conversations/{user_email}/{year}/{month}/{day}.json"
         
-        session_entry = {
+        # --- 1. SAVE SUMMARY ---
+        summary_blob = bucket.blob(summary_path)
+        summary_entry = {
             "timestamp": timestamp,
-            "summary": summary_text,
+            "summary": summary_text
+        }
+        
+        daily_summaries = []
+        if summary_blob.exists():
+            try:
+                content = summary_blob.download_as_text()
+                daily_summaries = json.loads(content)
+            except: daily_summaries = []
+            
+        daily_summaries.append(summary_entry)
+        summary_blob.upload_from_string(
+            data=json.dumps(daily_summaries, indent=4, ensure_ascii=False),
+            content_type='application/json'
+        )
+
+        # --- 2. SAVE RAW HISTORY ---
+        history_blob = bucket.blob(history_path)
+        history_entry = {
+            "timestamp": timestamp,
             "raw_history": history
         }
         
-        daily_record = []
-        if blob.exists():
+        daily_history = []
+        if history_blob.exists():
             try:
-                content = blob.download_as_text()
-                daily_record = json.loads(content)
-            except Exception as e:
-                print(f"⚠️ Could not read existing GCS blob: {e}")
-                daily_record = []
+                content = history_blob.download_as_text()
+                daily_history = json.loads(content)
+            except: daily_history = []
             
-        daily_record.append(session_entry)
-        
-        blob.upload_from_string(
-            data=json.dumps(daily_record, indent=4, ensure_ascii=False),
+        daily_history.append(history_entry)
+        history_blob.upload_from_string(
+            data=json.dumps(daily_history, indent=4, ensure_ascii=False),
             content_type='application/json'
         )
-        print(f"✅ Session summary saved to GCS: gs://{bucket_name}/{blob_path}")
-            
+
+        print(f"✅ Session stored in GCS: gs://{bucket_name}/summaries/... and gs://{bucket_name}/raw_conversations/...")
         return web.json_response({"summary": summary_text})
     except Exception as e:
         print(f"❌ Summarization Error: {e}")
@@ -524,8 +542,8 @@ async def handle_get_context(request):
         storage_client = storage.Client(project=project_id)
         bucket = storage_client.bucket(bucket_name)
         
-        # Path: sessions/user@email.com/YYYY/MM/DD.json
-        blob_path = f"sessions/{user_email}/{year}/{month}/{day}.json"
+        # Path: summaries/user@email.com/YYYY/MM/DD.json
+        blob_path = f"summaries/{user_email}/{year}/{month}/{day}.json"
         blob = bucket.blob(blob_path)
         
         context_text = ""
