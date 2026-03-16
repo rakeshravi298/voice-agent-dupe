@@ -11,6 +11,7 @@ from aiohttp import web
 from google.auth.transport.requests import Request
 from websockets.exceptions import ConnectionClosed
 from dotenv import load_dotenv
+import aiohttp
 from google import genai
 from google.genai import types
 from google.cloud import firestore
@@ -112,6 +113,8 @@ async def handle_http(request):
         target = "gemini-live.html"
     elif path == "login":
         target = "landing.html"
+    elif path == "dietician":
+        target = "dietician.html"
     else:
         target = path
 
@@ -123,7 +126,7 @@ async def handle_http(request):
 
     for fp in search_paths:
         if os.path.exists(fp) and os.path.isfile(fp):
-            if target in ["gemini-live.html", "landing.html"]:
+            if target in ["gemini-live.html", "landing.html", "dietician.html"]:
                 with open(fp, "r", encoding="utf-8") as f: content = f.read()
                 config = get_firebase_config()
                 content = content.replace('// CONFIG_PLACEHOLDER', f"const firebaseConfig = {json.dumps(config, indent=4)};")
@@ -460,6 +463,172 @@ async def handle_query_records(request):
         print(f"❌ Query Error: {e}")
         return web.json_response({"error": str(e)}, status=500)
 
+async def handle_get_all_users(request):
+    try:
+        project_id = os.getenv("FIREBASE_PROJECT_ID")
+        db = firestore.AsyncClient(project=project_id)
+        # We list documents in the 'users' collection
+        users_ref = db.collection("users")
+        users = []
+        async for doc in users_ref.stream():
+            # The doc ID is the sanitized email
+            sanitized_email = doc.id
+            # Recover the original email (approximate)
+            original_email = sanitized_email.replace("_at_", "@").replace("_", ".")
+            users.append({"email": original_email, "id": sanitized_email})
+        return web.json_response(users)
+    except Exception as e:
+        print(f"❌ Error fetching users: {e}")
+        return web.json_response({"error": str(e)}, status=500)
+
+async def handle_assign_patient(request):
+    try:
+        data = await request.json()
+        dietician_uid = data.get("dieticianUid")
+        patient_email = data.get("patientEmail")
+        
+        if not dietician_uid or not patient_email:
+            return web.json_response({"error": "Missing dieticianUid or patientEmail"}, status=400)
+            
+        project_id = os.getenv("FIREBASE_PROJECT_ID")
+        db = firestore.AsyncClient(project=project_id)
+        
+        # 1. Add patient to dietician's profile
+        dietician_ref = db.collection("profiles").document(dietician_uid)
+        patients_coll = dietician_ref.collection("patients")
+        
+        sanitized_email = patient_email.replace("@", "_at_").replace(".", "_")
+        await patients_coll.document(sanitized_email).set({
+            "email": patient_email,
+            "assignedAt": firestore.SERVER_TIMESTAMP
+        })
+        
+        # 2. Ensure user document exists in 'users' collection (for RAG)
+        user_ref = db.collection("users").document(sanitized_email)
+        doc = await user_ref.get()
+        if not doc.exists:
+            await user_ref.set({"email": patient_email, "initialized": True})
+            
+        return web.json_response({"status": "assigned"})
+    except Exception as e:
+        print(f"❌ Error assigning patient: {e}")
+        return web.json_response({"error": str(e)}, status=500)
+
+async def handle_get_my_patients(request):
+    try:
+        dietician_uid = request.query.get("dieticianUid")
+        if not dietician_uid:
+            return web.json_response({"error": "No dieticianUid provided"}, status=400)
+            
+        project_id = os.getenv("FIREBASE_PROJECT_ID")
+        db = firestore.AsyncClient(project=project_id)
+        
+        patients_ref = db.collection("profiles").document(dietician_uid).collection("patients")
+        patients = []
+        async for doc in patients_ref.stream():
+            data = doc.to_dict()
+            patients.append({
+                "email": data.get("email"),
+                "id": doc.id
+            })
+        return web.json_response(patients)
+    except Exception as e:
+        print(f"❌ Error fetching patients: {e}")
+        return web.json_response({"error": str(e)}, status=500)
+
+async def handle_upload_pdf(request):
+    try:
+        reader = await request.multipart()
+        field = await reader.next()
+        
+        filename = field.filename
+        user_email: str = ""
+        file_data = None
+        
+        while field:
+            if field.name == 'userEmail':
+                user_email = (await field.read()).decode()
+            if field.name == 'file':
+                file_data = await field.read()
+            field = await reader.next()
+
+        if not user_email or not file_data:
+            return web.json_response({"error": "Missing email or file"}, status=400)
+
+        sanitized_email = user_email.replace("@", "_at_").replace(".", "_")
+        project_id = os.getenv("FIREBASE_PROJECT_ID")
+        bucket_name = os.getenv("FIREBASE_STORAGE_BUCKET") or f"{project_id}.appspot.com"
+        
+        storage_client = storage.Client(project=project_id)
+        bucket = storage_client.bucket(bucket_name)
+        
+        # Save to users/{email}/files/{filename}
+        blob_path = f"users/{sanitized_email}/files/{filename}"
+        blob = bucket.blob(blob_path)
+        blob.upload_from_string(file_data, content_type='application/pdf')
+        
+        print(f"✅ PDF saved: gs://{bucket_name}/{blob_path}")
+
+        # Trigger Embedding Service (Cloud Run)
+        # Assuming EMBEDDING_SERVICE_URL is set in .env
+        embedding_url = os.getenv("EMBEDDING_SERVICE_URL")
+        if embedding_url:
+            async with aiohttp.ClientSession() as session:
+                async with session.post(embedding_url, json={
+                    "bucket": bucket_name,
+                    "path": blob_path,
+                    "userEmail": user_email
+                }) as resp:
+                    print(f"🚀 Triggered Embedding Service: {resp.status}")
+        else:
+            print("⚠️ EMBEDDING_SERVICE_URL not set. Skipping trigger.")
+
+        return web.json_response({"status": "uploaded", "path": blob_path})
+    except Exception as e:
+        print(f"❌ Upload Error: {e}")
+        return web.json_response({"error": str(e)}, status=500)
+
+async def handle_get_user_summaries(request):
+    try:
+        email = request.query.get("email")
+        if not email:
+            return web.json_response({"error": "No email provided"}, status=400)
+            
+        user_email = email.replace("@", "_at_").replace(".", "_")
+        project_id = os.getenv("FIREBASE_PROJECT_ID")
+        bucket_name = os.getenv("FIREBASE_STORAGE_BUCKET") or f"{project_id}.appspot.com"
+        
+        storage_client = storage.Client(project=project_id)
+        bucket = storage_client.bucket(bucket_name)
+        
+        # We want to list all summaries in 'summaries/user_email/...'
+        prefix = f"summaries/{user_email}/"
+        blobs = storage_client.list_blobs(bucket_name, prefix=prefix)
+        
+        all_summaries = []
+        for blob in blobs:
+            if blob.name.endswith(".json"):
+                # Path format: summaries/{email}/{year}/{month}/{day}.json
+                parts = blob.name.split("/")
+                if len(parts) >= 5:
+                    date_str = f"{parts[2]}-{parts[3]}-{parts[4].replace('.json', '')}"
+                    try:
+                        content = blob.download_as_text()
+                        day_summaries = json.loads(content)
+                        for s in day_summaries:
+                            all_summaries.append({
+                                "date": date_str,
+                                "timestamp": s.get("timestamp"),
+                                "summary": s.get("summary")
+                            })
+                    except Exception as e:
+                        print(f"Error reading blob {blob.name}: {e}")
+        
+        return web.json_response({"summaries": all_summaries})
+    except Exception as e:
+        print(f"❌ Error fetching summaries: {e}")
+        return web.json_response({"error": str(e)}, status=500)
+
 async def start_servers():
     app = web.Application()
     app.router.add_get("/{path:.*}", handle_http)
@@ -467,6 +636,11 @@ async def start_servers():
     app.router.add_get("/get_session_context", handle_get_context)
     app.router.add_post("/index_record", handle_index_record)
     app.router.add_post("/query_records", handle_query_records)
+    app.router.add_get("/get_all_users", handle_get_all_users)
+    app.router.add_get("/get_my_patients", handle_get_my_patients)
+    app.router.add_post("/assign_patient", handle_assign_patient)
+    app.router.add_get("/get_user_summaries", handle_get_user_summaries)
+    app.router.add_post("/upload_pdf", handle_upload_pdf)
     runner = web.AppRunner(app)
     await runner.setup()
     await web.TCPSite(runner, "0.0.0.0", HTTP_PORT).start()

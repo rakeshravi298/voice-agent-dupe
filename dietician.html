@@ -1,0 +1,504 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Dietician Dashboard | Vitality AI</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary: #2D3436;
+            --accent: #00B894;
+            --bg: #F0F2F5;
+            --card: #FFFFFF;
+            --sidebar: #2D3436;
+        }
+
+        body {
+            font-family: 'Outfit', sans-serif;
+            background-color: var(--bg);
+            color: var(--primary);
+            margin: 0;
+            display: flex;
+            height: 100vh;
+        }
+
+        /* Sidebar */
+        .sidebar {
+            width: 280px;
+            background: var(--sidebar);
+            color: white;
+            padding: 30px;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 4px 0 15px rgba(0, 0, 0, 0.1);
+        }
+
+        .sidebar h2 {
+            font-size: 1.5rem;
+            margin-bottom: 2rem;
+            color: var(--accent);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .user-list {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+            flex-grow: 1;
+            overflow-y: auto;
+        }
+
+        .user-item {
+            padding: 12px 15px;
+            border-radius: 12px;
+            margin-bottom: 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .user-item:hover, .user-item.active {
+            background: var(--accent);
+            color: white;
+            transform: translateX(5px);
+        }
+
+        .logout-btn {
+            margin-top: auto;
+            background: transparent;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            color: white;
+            padding: 10px;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .logout-btn:hover {
+            background: #FF7675;
+            border-color: #FF7675;
+        }
+
+        /* Main Content */
+        .main-content {
+            flex-grow: 1;
+            padding: 40px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 25px;
+        }
+
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+
+        .card {
+            background: var(--card);
+            padding: 30px;
+            border-radius: 20px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.05);
+        }
+
+        h3 { margin-top: 0; margin-bottom: 20px; font-weight: 600; font-size: 1.2rem; display: flex; align-items: center; gap: 10px; }
+
+        .summary-list {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .summary-item {
+            padding: 20px;
+            background: #F9FAFB;
+            border-left: 4px solid var(--accent);
+            border-radius: 8px;
+        }
+
+        .summary-date {
+            font-size: 0.8rem;
+            color: #636E72;
+            margin-bottom: 10px;
+            font-weight: 600;
+        }
+
+        .upload-section {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        textarea {
+            width: 100%;
+            height: 150px;
+            padding: 15px;
+            border-radius: 12px;
+            border: 1px solid #DFE6E9;
+            font-family: inherit;
+            resize: none;
+            box-sizing: border-box;
+        }
+
+        .input-title {
+            width: 100%;
+            padding: 12px;
+            border-radius: 10px;
+            border: 1px solid #DFE6E9;
+            box-sizing: border-box;
+            font-family: inherit;
+            margin-bottom: 10px;
+        }
+
+        .btn {
+            background: var(--accent);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 10px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s;
+            align-self: flex-end;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0, 184, 148, 0.3);
+        }
+
+        .btn:disabled {
+            background: #B2BEC3;
+            cursor: not-allowed;
+        }
+
+        .welcome-screen {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100%;
+            color: #636E72;
+        }
+
+        .welcome-screen span { font-size: 4rem; margin-bottom: 20px; }
+
+        /* Animation */
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .fade-in { animation: fadeIn 0.4s ease-out; }
+
+        #loading-overlay {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(255,255,255,0.8);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            display: none;
+        }
+    </style>
+</head>
+
+<body>
+    <div id="loading-overlay">Loading...</div>
+
+    <div class="sidebar">
+        <h2>🥗 Dietician Pan</h2>
+        <div style="margin-bottom: 20px; padding: 15px; background: rgba(255,255,255,0.05); border-radius: 12px;">
+            <div style="font-size: 0.8rem; margin-bottom: 8px; opacity: 0.8;">ADD PATIENT</div>
+            <input type="email" id="newPatientEmail" placeholder="patient@email.com" 
+                style="width: 100%; padding: 8px; border-radius: 6px; border: none; margin-bottom: 8px; font-family: inherit; font-size: 0.9rem;">
+            <button class="btn" id="addPatientBtn" style="width: 100%; padding: 8px; font-size: 0.8rem;">Add Patient</button>
+        </div>
+
+        <div style="margin-bottom: 15px; font-size: 0.9rem; opacity: 0.7;">MY PATIENTS</div>
+        <ul class="user-list" id="userList">
+            <!-- Users will be populated here -->
+        </ul>
+        <button class="logout-btn" id="logoutBtn">Logout</button>
+    </div>
+
+    <div class="main-content">
+        <div id="noUserSelected" class="welcome-screen">
+            <span>👋</span>
+            <h2>Welcome back, Dietician!</h2>
+            <p>Select a patient from the sidebar to view their progress and upload new plans.</p>
+        </div>
+
+        <div id="userDashboard" style="display: none;" class="fade-in">
+            <div class="header">
+                <h2 id="selectedUserName">User Dashboard</h2>
+                <div id="userEmailTag" style="color: #636E72; font-size: 0.9rem;"></div>
+            </div>
+
+            <div class="card">
+                <h3>📝 Add New Plan or Record</h3>
+                <div class="upload-section">
+                    <input type="text" id="recordTitle" class="input-title" placeholder="Record Title (e.g., April Diet Plan)">
+                    <textarea id="recordContent" placeholder="Enter diet plan, medical notes, or instructions..."></textarea>
+                    <div style="display: flex; gap: 10px; align-items: center; margin-top: 10px; padding: 15px; background: #F8F9FA; border-radius: 12px; border: 1px dashed #ced4da;">
+                        <div style="flex-grow: 1;">
+                            <label style="display: block; font-size: 0.8rem; margin-bottom: 5px; color: #636E72;">Upload PDF Document</label>
+                            <input type="file" id="pdfFile" accept="application/pdf" style="font-size: 0.85rem;">
+                        </div>
+                        <button class="btn btn-outline" id="uploadPdfBtn" style="background: white; border-color: var(--accent); color: var(--accent);">Upload PDF</button>
+                    </div>
+                    <button class="btn" id="uploadBtn" style="margin-top: 10px;">Upload & Index Text Record</button>
+                </div>
+            </div>
+
+            <div class="card" style="margin-top: 25px;">
+                <h3>📊 Recent Summaries</h3>
+                <div id="summariesContainer" class="summary-list">
+                    <p style="color: #636E72;">No summaries found for this user.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Firebase SDKs -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.10.0/firebase-app.js";
+        import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.10.0/firebase-auth.js";
+        import { getFirestore, doc, getDoc } from "https://www.gstatic.com/firebasejs/10.10.0/firebase-firestore.js";
+
+        // CONFIG_PLACEHOLDER
+
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+
+        let selectedUser = null;
+
+        // Auth Check
+        onAuthStateChanged(auth, async (user) => {
+            console.log("Auth State Changed:", user ? "Logged In" : "Logged Out");
+            if (!user) {
+                window.location.href = '/login';
+                return;
+            }
+
+            try {
+                // Verify if user is a dietician
+                const userDoc = await getDoc(doc(db, "profiles", user.uid));
+                if (!userDoc.exists() || userDoc.data().role !== 'dietician') {
+                    console.warn("Unauthorized role detected. Redirecting to user app.");
+                    alert("Unauthorized access. Redirecting to user app.");
+                    window.location.href = '/';
+                    return;
+                }
+            } catch (e) {
+                console.error("Firestore Role Check Failed:", e);
+                // If it fails, we fall back to user side for safety
+                window.location.href = '/';
+                return;
+            }
+
+            loadUsers(user.uid);
+            document.getElementById('addPatientBtn').onclick = () => assignPatient(user.uid);
+        });
+
+        async function loadUsers(dieticianUid) {
+            try {
+                const response = await fetch(`/get_my_patients?dieticianUid=${dieticianUid}`);
+                const users = await response.json();
+                const list = document.getElementById('userList');
+                list.innerHTML = '';
+
+                if (users.length === 0) {
+                    list.innerHTML = '<li style="font-size: 0.8rem; opacity: 0.5; padding: 10px;">No patients assigned.</li>';
+                }
+
+                users.forEach(u => {
+                    const li = document.createElement('li');
+                    li.className = 'user-item';
+                    li.textContent = u.email;
+                    li.onclick = () => selectUser(u);
+                    list.appendChild(li);
+                });
+            } catch (err) {
+                console.error("Error loading users:", err);
+            }
+        }
+
+        async function assignPatient(dieticianUid) {
+            const emailInput = document.getElementById('newPatientEmail');
+            const email = emailInput.value.trim();
+            if (!email) return;
+
+            const btn = document.getElementById('addPatientBtn');
+            btn.disabled = true;
+            btn.textContent = 'Adding...';
+
+            try {
+                const response = await fetch('/assign_patient', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        dieticianUid: dieticianUid,
+                        patientEmail: email
+                    })
+                });
+
+                const result = await response.json();
+                if (result.status === 'assigned') {
+                    emailInput.value = '';
+                    loadUsers(dieticianUid);
+                } else {
+                    alert("Error: " + result.error);
+                }
+            } catch (err) {
+                alert("Failed to assign patient.");
+            } finally {
+                btn.disabled = false;
+                btn.textContent = 'Add Patient';
+            }
+        }
+
+        async function selectUser(user) {
+            selectedUser = user;
+            document.querySelectorAll('.user-item').forEach(el => {
+                el.classList.toggle('active', el.textContent === user.email);
+            });
+
+            document.getElementById('noUserSelected').style.display = 'none';
+            document.getElementById('userDashboard').style.display = 'block';
+            document.getElementById('selectedUserName').textContent = user.email.split('@')[0];
+            document.getElementById('userEmailTag').textContent = user.email;
+
+            loadSummaries(user.email);
+        }
+
+        async function loadSummaries(email) {
+            const container = document.getElementById('summariesContainer');
+            container.innerHTML = '<p>Loading summaries...</p>';
+
+            try {
+                const response = await fetch(`/get_user_summaries?email=${encodeURIComponent(email)}`);
+                const data = await response.json();
+
+                if (data.summaries && data.summaries.length > 0) {
+                    container.innerHTML = '';
+                    data.summaries.reverse().forEach(s => {
+                        const item = document.createElement('div');
+                        item.className = 'summary-item';
+                        item.innerHTML = `
+                            <div class="summary-date">${s.date} - ${s.timestamp}</div>
+                            <div class="summary-content">${s.summary.replace(/\n/g, '<br>')}</div>
+                        `;
+                        container.appendChild(item);
+                    });
+                } else {
+                    container.innerHTML = '<p style="color: #636E72;">No summaries found for this user.</p>';
+                }
+            } catch (err) {
+                container.innerHTML = '<p style="color: #FF7675;">Error loading summaries.</p>';
+            }
+        }
+
+        document.getElementById('uploadBtn').onclick = async () => {
+            if (!selectedUser) return;
+            const title = document.getElementById('recordTitle').value;
+            const content = document.getElementById('recordContent').value;
+
+            if (!title || !content) {
+                alert("Please fill in both title and content.");
+                return;
+            }
+
+            document.getElementById('uploadBtn').disabled = true;
+            document.getElementById('uploadBtn').textContent = 'Uploading...';
+
+            try {
+                const response = await fetch('/index_record', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        userEmail: selectedUser.email,
+                        title: title,
+                        text: content
+                    })
+                });
+
+                const result = await response.json();
+                if (result.status === 'indexed') {
+                    alert("Record indexed successfully!");
+                    document.getElementById('recordTitle').value = '';
+                    document.getElementById('recordContent').value = '';
+                } else {
+                    alert("Error: " + result.error);
+                }
+            } catch (err) {
+                alert("Failed to upload record.");
+            } finally {
+                document.getElementById('uploadBtn').disabled = false;
+                document.getElementById('uploadBtn').textContent = 'Upload & Index Text Record';
+            }
+        };
+
+        document.getElementById('uploadPdfBtn').onclick = async () => {
+            if (!selectedUser) {
+                alert("Please select a user first.");
+                return;
+            }
+            const fileInput = document.getElementById('pdfFile');
+            const file = fileInput.files[0];
+
+            if (!file) {
+                alert("Please select a PDF file.");
+                return;
+            }
+
+            if (file.type !== 'application/pdf') {
+                alert("Only PDF files are allowed.");
+                return;
+            }
+
+            const btn = document.getElementById('uploadPdfBtn');
+            btn.disabled = true;
+            btn.textContent = 'Uploading...';
+
+            const formData = new FormData();
+            formData.append('file', file);
+            formData.append('userEmail', selectedUser.email);
+
+            try {
+                const response = await fetch('/upload_pdf', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const result = await response.json();
+                if (result.status === 'uploaded') {
+                    alert("PDF uploaded successfully! Embedding process started.");
+                    fileInput.value = '';
+                } else {
+                    alert("Error: " + result.error);
+                }
+            } catch (err) {
+                alert("Failed to upload PDF.");
+            } finally {
+                btn.disabled = false;
+                btn.textContent = 'Upload PDF';
+            }
+        };
+
+        document.getElementById('logoutBtn').onclick = () => {
+            signOut(auth).then(() => window.location.href = '/login');
+        };
+    </script>
+</body>
+
+</html>

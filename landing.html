@@ -172,6 +172,18 @@
             <button class="login-btn" id="submitBtn">Login</button>
         </div>
 
+        <div id="role-selection" style="display: none; margin-bottom: 20px; text-align: left;">
+            <label style="font-size: 0.9rem; font-weight: 500; display: block; margin-bottom: 5px;">I am signing up as a:</label>
+            <div style="display: flex; gap: 15px;">
+                <label style="display: flex; align-items: center; gap: 5px; cursor: pointer;">
+                    <input type="radio" name="role" value="user" checked> User
+                </label>
+                <label style="display: flex; align-items: center; gap: 5px; cursor: pointer;">
+                    <input type="radio" name="role" value="dietician"> Dietician
+                </label>
+            </div>
+        </div>
+
         <button class="toggle-auth" id="toggleAuthBtn">Don't have an account? Sign up</button>
 
         <div class="footer">
@@ -183,12 +195,14 @@
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.10.0/firebase-app.js";
         import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/10.10.0/firebase-auth.js";
+        import { getFirestore, doc, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/10.10.0/firebase-firestore.js";
 
         // CONFIG_PLACEHOLDER
         console.log("Login page initialized with Firebase Config:", firebaseConfig);
 
         const app = initializeApp(firebaseConfig);
         const auth = getAuth(app);
+        const db = getFirestore(app);
 
         let isLogin = true;
 
@@ -205,11 +219,13 @@
             authSubtitle.textContent = isLogin ? 'Welcome back! Please enter your details.' : 'Start your health journey today.';
             submitBtn.textContent = isLogin ? 'Login' : 'Sign Up';
             toggleAuthBtn.textContent = isLogin ? "Don't have an account? Sign up" : "Already have an account? Login";
+            document.getElementById('role-selection').style.display = isLogin ? 'none' : 'block';
         });
 
         submitBtn.addEventListener('click', async () => {
             const email = emailInput.value;
             const password = passwordInput.value;
+            const role = document.querySelector('input[name="role"]:checked').value;
 
             if (!email || !password) {
                 alert("Please fill in all fields.");
@@ -217,12 +233,36 @@
             }
 
             try {
+                let userCredential;
                 if (isLogin) {
-                    await signInWithEmailAndPassword(auth, email, password);
+                    userCredential = await signInWithEmailAndPassword(auth, email, password);
                 } else {
-                    await createUserWithEmailAndPassword(auth, email, password);
+                    userCredential = await createUserWithEmailAndPassword(auth, email, password);
+                    // Save role to profiles collection
+                    await setDoc(doc(db, "profiles", userCredential.user.uid), {
+                        email: email,
+                        role: role,
+                        createdAt: new Date().toISOString()
+                    });
+                    
+                    // Also create an empty doc in 'users' collection for the user list to pick up
+                    const sanitizedEmail = email.replace("@", "_at_").replace(".", "_");
+                    await setDoc(doc(db, "users", sanitizedEmail), { initialized: true });
                 }
-                window.location.href = '/';
+
+                // Check role and redirect
+                const userDoc = await getDoc(doc(db, "profiles", userCredential.user.uid));
+                if (userDoc.exists()) {
+                    const userData = userDoc.data();
+                    if (userData.role === 'dietician') {
+                        window.location.href = '/dietician';
+                    } else {
+                        window.location.href = '/';
+                    }
+                } else {
+                    // Fallback for old users
+                    window.location.href = '/';
+                }
             } catch (error) {
                 console.error("Auth error:", error);
                 alert(error.message);

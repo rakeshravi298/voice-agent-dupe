@@ -1,0 +1,7 @@
+functions-framework
+google-cloud-storage
+google-cloud-firestore
+google-genai
+PyPDF2
+asyncio
+aiohttp

@@ -943,14 +943,30 @@
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.10.0/firebase-app.js";
         import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.10.0/firebase-auth.js";
+        import { getFirestore, doc, getDoc } from "https://www.gstatic.com/firebasejs/10.10.0/firebase-firestore.js";
 
         // CONFIG_PLACEHOLDER
 
         const firebaseApp = initializeApp(firebaseConfig);
         const auth = getAuth(firebaseApp);
+        const db = getFirestore(firebaseApp);
 
-        onAuthStateChanged(auth, (user) => {
+        onAuthStateChanged(auth, async (user) => {
+            console.log("Auth State Changed:", user ? "Logged In" : "Logged Out");
             if (user) {
+                try {
+                    // Verify role - wrap in try/catch to prevent hang if Firestore fails
+                    const userDoc = await getDoc(doc(db, "profiles", user.uid));
+                    if (userDoc.exists() && userDoc.data().role === 'dietician') {
+                        console.log("Role detected: Dietician. Redirecting...");
+                        window.location.href = '/dietician';
+                        return;
+                    }
+                } catch (e) {
+                    console.error("Error checking role:", e);
+                }
+                
+                console.log("Initializing User Session...");
                 document.getElementById('auth-overlay').style.display = 'none';
                 document.getElementById('user-email').textContent = user.email.split('@')[0];
                 document.getElementById('projectId').value = firebaseConfig.projectId;
@@ -959,6 +975,7 @@
                 const sanitizedEmail = user.email.replace(/@/g, "_at_").replace(/\./g, "_");
                 document.getElementById('userEmailFull').value = sanitizedEmail;
             } else {
+                console.log("No user found, redirecting to login.");
                 window.location.href = '/login';
             }
         });
