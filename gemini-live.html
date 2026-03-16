@@ -2,1115 +2,1136 @@
 <html lang="en">
 
 <head>
-    <title>Gemini Live Voice to Text Realtime Stream</title>
-    <!-- By Jim Salsman, April 2025. Released under the free MIT License. -->
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NutriBuddy | Gemini Live Diet Assistant</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600&family=JetBrains+Mono&display=swap"
+        rel="stylesheet">
+
     <style>
-        /* General body styles */
+        :root {
+            --bg-color: #0A0F12;
+            --card-bg: rgba(23, 32, 38, 0.7);
+            --accent-primary: #00B894;
+            --accent-glow: rgba(0, 184, 148, 0.3);
+            --text-main: #E1E8EB;
+            --text-dim: #94A3B8;
+            --glass-border: rgba(255, 255, 255, 0.08);
+            --user-bubble: rgba(0, 184, 148, 0.15);
+            --ai-bubble: rgba(255, 255, 255, 0.05);
+        }
+
+        * {
+            box-sizing: border-box;
+            -webkit-font-smoothing: antialiased;
+        }
+
         body {
-            font-family: sans-serif;
+            font-family: 'Outfit', sans-serif;
+            background: var(--bg-color);
+            background-image:
+                radial-gradient(circle at 0% 0%, rgba(0, 184, 148, 0.05) 0%, transparent 50%),
+                radial-gradient(circle at 100% 100%, rgba(0, 184, 148, 0.05) 0%, transparent 50%);
+            color: var(--text-main);
+            margin: 0;
             display: flex;
             flex-direction: column;
             height: 100vh;
-            margin: 0;
             overflow: hidden;
-            /* Prevent body from scrolling */
-            background-color: #eee;
         }
 
-        /* Control bar styles */
-        #controls {
-            padding: 5px;
-            /* Light background and border */
-            background-color: lightcyan;
-            border-bottom: 1px solid #ccc;
+        /* Animated background mesh */
+        .mesh-gradient {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: -1;
+            opacity: 0.4;
+            filter: blur(80px);
+        }
+
+        /* Glassmorphism Navigation */
+        #nav-bar {
+            background: rgba(10, 15, 18, 0.8);
+            backdrop-filter: blur(12px);
+            padding: 16px 32px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid var(--glass-border);
+            z-index: 1000;
+        }
+
+        .brand {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-weight: 600;
+            font-size: 1.4rem;
+            letter-spacing: -0.5px;
+        }
+
+        .brand-icon {
+            width: 32px;
+            height: 32px;
+            background: var(--accent-primary);
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 0 20px var(--accent-glow);
+        }
+
+        #user-profile {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+        }
+
+        #user-email {
+            font-size: 0.9rem;
+            color: var(--text-dim);
+        }
+
+        #logoutBtn {
+            background: rgba(255, 255, 255, 0.05);
+            color: var(--text-main);
+            border: 1px solid var(--glass-border);
+            padding: 8px 16px;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+            font-family: inherit;
+        }
+
+        #logoutBtn:hover {
+            background: rgba(255, 255, 255, 0.1);
+            transform: translateY(-1px);
+        }
+
+        /* Main Layout Overhaul */
+        #main-layout {
+            display: flex;
+            flex: 1;
+            padding: 24px;
+            gap: 24px;
+            overflow: hidden;
+            max-width: 1600px;
+            margin: 0 auto;
+            width: 100%;
+        }
+
+        /* Center Content Panel */
+        #content-panel {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 24px;
+            min-width: 0;
+        }
+
+        /* Visualizer Area */
+        #visualizer-container {
+            background: var(--card-bg);
+            border-radius: 24px;
+            border: 1px solid var(--glass-border);
+            position: relative;
+            height: 180px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+            box-shadow: inset 0 0 40px rgba(0, 0, 0, 0.2);
+        }
+
+        .voice-ring {
+            position: absolute;
+            width: 100px;
+            height: 100px;
+            border-radius: 50%;
+            border: 2px solid var(--accent-primary);
+            opacity: 0;
+        }
+
+        .voice-ring.active {
+            animation: ringPulse 2s infinite;
+        }
+
+        @keyframes ringPulse {
+            0% {
+                transform: scale(0.8);
+                opacity: 0.8;
+            }
+
+            100% {
+                transform: scale(2.5);
+                opacity: 0;
+            }
+        }
+
+        .waveform {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            height: 60px;
+        }
+
+        .bar {
+            width: 4px;
+            background: var(--accent-primary);
+            border-radius: 2px;
+            transition: height 0.1s ease;
+            box-shadow: 0 0 10px var(--accent-glow);
+        }
+
+        /* Chat Container */
+        #output-container {
+            flex: 1;
+            background: var(--card-bg);
+            border-radius: 24px;
+            border: 1px solid var(--glass-border);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.3);
+        }
+
+        #chatContainer {
+            flex: 1;
+            padding: 32px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+            scrollbar-width: thin;
+            scrollbar-color: var(--glass-border) transparent;
+        }
+
+        .message {
+            padding: 14px 20px;
+            border-radius: 18px;
+            max-width: 80%;
+            line-height: 1.6;
+            font-size: 0.95rem;
+            animation: slideUp 0.3s ease;
+        }
+
+        @keyframes slideUp {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .assistant {
+            background: var(--ai-bubble);
+            border: 1px solid var(--glass-border);
+            align-self: flex-start;
+            border-bottom-left-radius: 4px;
+        }
+
+        .user {
+            background: var(--user-bubble);
+            border: 1px solid rgba(0, 184, 148, 0.2);
+            align-self: flex-end;
+            border-bottom-right-radius: 4px;
+            color: #fff;
+        }
+
+        .system {
+            background: transparent;
+            color: var(--text-dim);
             text-align: center;
+            font-size: 0.8rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin: 20px 0;
+            width: 100%;
+        }
+
+        .typing-indicator {
+            font-style: italic;
+            color: var(--accent-primary);
+            font-size: 0.85rem;
+            opacity: 0.8;
+            margin-left: 10px;
+        }
+
+        /* Sidebar Panel */
+        .side-panel {
+            width: 380px;
+            display: flex;
+            flex-direction: column;
+            gap: 24px;
+            overflow-y: auto;
+            padding-right: 8px;
+            scrollbar-width: thin;
+            scrollbar-color: var(--glass-border) transparent;
+        }
+
+        .side-panel::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        .side-panel::-webkit-scrollbar-thumb {
+            background: var(--glass-border);
+            border-radius: 10px;
+        }
+
+        .card {
+            background: var(--card-bg);
+            padding: 24px;
+            border-radius: 24px;
+            border: 1px solid var(--glass-border);
+            backdrop-filter: blur(10px);
+        }
+
+        .card-title {
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            color: var(--text-dim);
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .btn {
+            width: 100%;
+            padding: 16px;
+            border: none;
+            border-radius: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+            font-size: 1rem;
+            font-family: inherit;
+        }
+
+        .btn-primary {
+            background: var(--accent-primary);
+            color: white;
+            box-shadow: 0 8px 24px var(--accent-glow);
+        }
+
+        .btn-primary:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 12px 30px var(--accent-glow);
+        }
+
+        .btn-primary:active {
+            transform: translateY(0);
+        }
+
+        .btn-stop {
+            background: rgba(255, 118, 117, 0.1);
+            color: #FF7675;
+            border: 1px solid rgba(255, 118, 117, 0.2);
+        }
+
+        .btn-outline {
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid var(--glass-border);
+            color: var(--text-main);
+        }
+
+        .status-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            padding: 6px 16px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 100px;
+            font-size: 0.85rem;
+            margin-bottom: 12px;
+        }
+
+        .status-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: #4A5568;
             position: relative;
         }
 
-        #controls-content {
+        .status-dot.active {
+            background: var(--accent-primary);
+            box-shadow: 0 0 12px var(--accent-primary);
+        }
+
+        .status-dot.active::after {
+            content: '';
+            position: absolute;
+            inset: -4px;
+            border-radius: 50%;
+            border: 2px solid var(--accent-primary);
+            animation: echo 1.5s infinite;
+        }
+
+        @keyframes echo {
+            0% {
+                transform: scale(1);
+                opacity: 1;
+            }
+
+            100% {
+                transform: scale(2);
+                opacity: 0;
+            }
+        }
+
+        #debugInfo {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.7rem;
+            background: rgba(0, 0, 0, 0.2);
+            padding: 16px;
+            border-radius: 16px;
+            max-height: 120px;
+            overflow-y: auto;
+            border: 1px solid var(--glass-border);
+            color: var(--text-dim);
+            margin-top: 12px;
+        }
+
+        video {
+            width: 100%;
+            border-radius: 16px;
+            background: #000;
+            border: 1px solid var(--glass-border);
+        }
+
+        /* Responsive */
+        @media (max-width: 1024px) {
+            #main-layout {
+                flex-direction: column;
+                overflow-y: auto;
+            }
+
+            .side-panel {
+                width: 100%;
+            }
+
+            #visualizer-container {
+                height: 120px;
+            }
+        }
+
+        /* Input Area Overhaul */
+        .input-area {
+            padding: 20px 32px;
+            background: rgba(0, 0, 0, 0.2);
+            border-top: 1px solid var(--glass-border);
+            display: flex;
+            gap: 12px;
+            align-items: center;
+        }
+
+        #chatInput {
+            flex: 1;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid var(--glass-border);
+            border-radius: 14px;
+            padding: 14px 20px;
+            color: white;
+            font-family: inherit;
+            outline: none;
+            transition: all 0.2s;
+        }
+
+        #chatInput:focus {
+            border-color: var(--accent-primary);
+            background: rgba(255, 255, 255, 0.08);
+        }
+
+        #auth-overlay {
+            position: fixed;
+            inset: 0;
+            background: var(--bg-color);
+            z-index: 2000;
             display: flex;
             align-items: center;
-            justify-content: flex-end;
-            width: 100%;
-            text-align: center;
-            /* Center content horizontally */
-            gap: 5px;
-            /* Add gap between elements */
+            justify-content: center;
+            flex-direction: column;
+            gap: 24px;
         }
 
-        /* Start/Stop listening button */
-        #toggleStream {
-            padding: 10px 20px;
-            font-size: 1em;
+        .loader {
+            width: 50px;
+            height: 50px;
+            border: 3px solid rgba(0, 184, 148, 0.1);
+            border-top: 3px solid var(--accent-primary);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            100% {
+                transform: rotate(360deg);
+            }
+        }
+
+        /* Custom Range Slider */
+        input[type=range] {
+            appearance: none;
+            width: 100%;
+            height: 4px;
+            background: var(--glass-border);
+            border-radius: 2px;
+            outline: none;
+        }
+
+        input[type=range]::-webkit-slider-thumb {
+            appearance: none;
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            background: var(--accent-primary);
             cursor: pointer;
-            background-color: #4c4;
-            color: white;
-            border: none;
-            border-radius: 5px;
+            box-shadow: 0 0 10px var(--accent-glow);
         }
 
-        /* Send image button */
-        #sendImage {
-            background-color: blue;
-            display: none;
-            /* Initially hidden */
-            border: none;
-            color: white;
-            font-size: 1em;
-            padding: 10px 20px;
-            border-radius: 5px;
-        }
-
-        /* Send text button */
-        #sendText {
-            background-color: darkorange;
-            display: none;
-            /* Initially hidden */
-            border: none;
-            color: white;
-            font-size: 1em;
-            padding: 10px 20px;
-            border-radius: 5px;
-        }
-
-        /* Style for 'stop' state of the listening button */
-        #toggleStream.stop {
-            background-color: red;
-        }
-
-        /* Title style, floated to the left */
-        #title {
-            font-size: 1.2em;
-            border-radius: 5px;
-            margin-right: auto;
-            /* Push the title to the far left */
-        }
-
-        /* Styles for debug input elements */
-        #controls-content>label,
-        #controls-content>input {
-            margin-left: 5px;
-        }
-
-        /* Debug container style */
-        #debugContainer {
-            margin-right: auto;
-            /* Push the container to the far left */
-            text-align: center;
-            /* Center the content */
-        }
-
-        /* Main output container styles */
-        #output-container {
-            flex-grow: 1;
-            /* Take up remaining space */
-            padding: 10px;
-            padding-bottom: 30px;
-            /* required so the bottom isn't covered by navigation button bar on Android Chrome Mobile. TODO: fix. */
-            overflow-y: auto;
-            /* Enable scrolling if content overflows */
-            background-color: white;
-            border: 1px solid lightgray;
-            margin: 8px;
-            border-radius: 5px;
-            scroll-behavior: smooth;
-            /* Smooth scroll behavior */
-        }
-
-        /* Output text style */
-        #output {
-            white-space: pre-wrap;
-            /* Wrap long lines */
-            word-wrap: break-word;
-            /* Break long words onto multiple lines */
-            font-family: sans-serif;
-            font-size: 0.9em;
-        }
-
-        /* Styles to eliminate extra whitespace around output content */
-        #output p {
-            margin-bottom: -0.5em;
-            /* Remove vertical whitespace */
-            margin-top: -0.2em;
-        }
-
-        #output ul,
-        #output ol,
-        #output li {
-            margin-top: -0.5em;
-            margin-bottom: -0.5em;
-            /* Remove vertical whitespace */
-        }
-
-        /* Styles to eliminate extra whitespace around <pre> output content */
-        #output pre {
-            margin: 0;
-            /* Remove vertical whitespace */
-            white-space: pre-wrap;
-            /* Wrap long lines */
-        }
-
-        /* Styles for images in the output area */
-        .output-image {
-            max-height: 50vh;
-            max-width: 90vw;
-        }
-
-        /* Output text styles */
-        .error {
-            color: red;
-            font-weight: bold;
-        }
-
-        .info {
-            color: blue;
-            font-style: italic;
-        }
-
-        /* Styles for floating text input */
-        #floatingTextInput {
-            display: none;
-            /* Initially hidden */
-            position: fixed;
-            /* Fixed position */
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            /* Center */
-            width: 80vw;
-            /* 80% of viewport width */
-            max-width: 600px;
-            /* Max width */
-            background-color: rgba(255, 255, 255, 0.95);
-            /* Semi-transparent background */
+        #summaryContainer {
+            margin-top: 20px;
             padding: 20px;
-            border-radius: 10px;
-            box-shadow: 0px 0px 20px rgba(0, 0, 0, 0.3);
-            z-index: 100;
-            /* Ensure it's on top */
+            background: rgba(0, 184, 148, 0.05);
+            border: 1px dashed var(--accent-primary);
+            border-radius: 16px;
+            display: none;
+            animation: fadeIn 0.5s ease;
         }
 
-        #textInput {
-            width: 100%;
-            height: 10em;
-            /* 10 lines */
-            margin-bottom: 10px;
-            resize: vertical;
-            /* Allow vertical resize */
+        #summaryContent {
+            font-size: 0.9rem;
+            line-height: 1.6;
+            color: var(--text-main);
+        }
+
+        #summaryContent strong {
+            color: var(--accent-primary);
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .spinner {
+            display: inline-block;
+            animation: spin 1s linear infinite;
         }
     </style>
-    <script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js" crossorigin="anonymous"></script>
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css" crossorigin="anonymous">
 </head>
 
 <body>
-    <div id="controls">
-        <div id="controls-content">
-            <h1 id="title">Gemini Live<br>Voice to Text Stream</h1>
-            <div id="debugContainer">
-                <a href="https://github.com/jsalsman/gemini-live" target="_blank" style="text-decoration: none;">This
-                    code is on GitHub.</a>
-                <br><br>
-                <input type="checkbox" id="debugCheckbox">
-                <label for="debugCheckbox"><small>Debug<br>
-                        &nbsp;&nbsp;to console</small></label>
+    <div id="auth-overlay">
+        <div class="loader"></div>
+        <p style="color: var(--text-dim); letter-spacing: 1px; font-weight: 300;">NUTRIBUDDY waiting to connect...</p>
+    </div>
+
+    <nav id="nav-bar">
+        <a href="/" class="brand" style="text-decoration: none; color: inherit;">
+            <img src="/static/logo.png" alt="NutriBuddy" width="32" height="32"
+                style="border-radius: 8px; box-shadow: 0 0 20px var(--accent-glow);">
+            NutriBuddy
+        </a>
+        <div id="user-profile">
+            <span id="user-email"></span>
+            <button id="logoutBtn">Logout</button>
+        </div>
+    </nav>
+
+    <div id="main-layout">
+        <div id="content-panel">
+            <!-- New Core: Visualizer -->
+            <div id="visualizer-container">
+                <div class="voice-ring" id="ring-1"></div>
+                <div class="voice-ring" id="ring-2" style="animation-delay: 0.6s"></div>
+                <div class="voice-ring" id="ring-3" style="animation-delay: 1.2s"></div>
+
+                <div class="waveform" id="waveform">
+                    <!-- Bars generated by JS -->
+                </div>
+
+                <div id="ai-speaking-label"
+                    style="position: absolute; bottom: 15px; font-size: 0.7rem; color: var(--accent-primary); font-weight: 600; letter-spacing: 1px; opacity: 0; transition: opacity 0.3s;">
+                    NUTRIBUDDY IS SPEAKING...
+                </div>
             </div>
-            <button id="toggleStream">Start<br>
-                Listening</button>
-            <button id="sendImage">Send<br>
-                Image</button>
-            <button id="sendText">Send<br>
-                Text</button>
+
+            <div id="output-container">
+                <div id="chatContainer">
+                    <div class="system">Connect to begin your personalized health session</div>
+                </div>
+
+                <div class="input-area">
+                    <input type="text" id="chatInput" placeholder="Describe your meal or ask a question..."
+                        autocomplete="off">
+                    <button id="sendBtn" class="btn btn-primary" style="width: auto; padding: 12px 24px;">Send</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="side-panel">
+            <div class="card">
+                <div class="status-badge">
+                    <div class="status-dot" id="status-dot"></div>
+                    <span id="connectionStatus" style="font-weight: 600;">OFFLINE</span>
+                </div>
+
+                <div style="display: flex; flex-direction: column; gap: 12px;">
+                    <button id="connectBtn" class="btn btn-primary">Establish Link</button>
+                    <button id="disconnectBtn" class="btn btn-stop" style="display: none;">Terminate Session</button>
+                    <button id="summarizeBtn" class="btn btn-outline"
+                        style="display: none; border-color: var(--accent-primary);">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+                        </svg> Summarize Session
+                    </button>
+
+                    <div id="mediaControls" style="display: none; flex-direction: column; gap: 12px;">
+                        <button id="startAudioBtn" class="btn btn-outline"
+                            style="border-color: rgba(0, 184, 148, 0.3);">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z" />
+                                <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
+                                <line x1="12" x2="12" y1="19" y2="22" />
+                            </svg> Start Voice Proxy
+                        </button>
+                        <button id="startVideoBtn" class="btn btn-outline">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M23 7l-7 5 7 5V7z" />
+                                <rect x="1" y="5" width="15" height="14" rx="2" ry="2" />
+                            </svg> Analyze View
+                        </button>
+                    </div>
+                </div>
+
+                <div id="debugInfo">System ready.</div>
+
+                <div id="summaryContainer">
+                    <div
+                        style="font-size: 0.7rem; text-transform: uppercase; color: var(--accent-primary); margin-bottom: 10px; font-weight: 600; display: flex; align-items: center; gap: 6px;">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path
+                                d="m21.64 3.64-1.28-1.28a1.21 1.21 0 0 0-1.72 0L2.36 18.64a1.21 1.21 0 0 0 0 1.72l1.28 1.28a1.2 1.2 0 0 0 1.72 0L21.64 5.36a1.2 1.2 0 0 0 0-1.72Z" />
+                            <path d="m14 7 3 3" />
+                        </svg>
+                        Session Summary
+                    </div>
+                    <div id="summaryContent"
+                        style="max-height: 300px; overflow-y: auto; scrollbar-width: thin; padding-right: 5px;"></div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-title"><svg width="14" height="14" viewBox="0 0 24 24" fill="none"
+                        stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path
+                            d="M4 20h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.93a2 2 0 0 1-1.66-.9l-.82-1.2A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13c0 1.1.9 2 2 2Z" />
+                    </svg> Dietitian's Vault</div>
+                <div style="display: flex; flex-direction: column; gap: 12px;">
+                    <p style="font-size: 0.75rem; color: var(--text-dim); margin-top: 0;">NutriBuddy has access to your
+                        latest diet plans and medical records synced by your dietitian.</p>
+                    <div id="memory-status"
+                        style="font-size: 0.7rem; display: flex; align-items: center; gap: 8px; color: var(--accent-primary);">
+                        <div class="status-dot active" style="width: 6px; height: 6px;"></div> Semantic Sync Active
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-title"><svg width="14" height="14" viewBox="0 0 24 24" fill="none"
+                        stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
+                        <line x1="3" y1="9" x2="21" y2="9" />
+                        <line x1="9" y1="21" x2="9" y2="9" />
+                    </svg> Session Parameters</div>
+
+                <div style="display: flex; flex-direction: column; gap: 20px;">
+                    <div>
+                        <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+                            <label style="font-size: 0.8rem; color: var(--text-dim);">Neural Temperature</label>
+                            <span id="temperatureValue"
+                                style="color: var(--accent-primary); font-size: 0.8rem;">1.0</span>
+                        </div>
+                        <input type="range" id="temperature" min="0.1" max="2.0" step="0.1" value="1.0">
+                    </div>
+
+                    <div>
+                        <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+                            <label style="font-size: 0.8rem; color: var(--text-dim);">Audio Volume</label>
+                            <span id="volumeValue" style="color: var(--accent-primary); font-size: 0.8rem;">80%</span>
+                        </div>
+                        <input type="range" id="volume" min="0" max="100" value="80">
+                    </div>
+
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+                        <select id="micSelect" class="btn btn-outline"
+                            style="font-size: 0.75rem; padding: 8px;"></select>
+                        <select id="cameraSelect" class="btn btn-outline"
+                            style="font-size: 0.75rem; padding: 8px;"></select>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card"
+                style="flex: 1; padding: 0; overflow: hidden; display: flex; align-items: center; justify-content: center;">
+                <video id="videoPreview" autoplay playsinline muted hidden></video>
+                <div id="camera-placeholder"
+                    style="color: var(--text-dim); font-size: 0.8rem; text-align: center; padding: 40px;">
+                    Camera input will appear here when active.
+                </div>
+            </div>
+
+            <!-- Technical Configuration (Hidden) -->
+            <div style="display: none;">
+                <input id="userEmailFull" value="">
+                <input id="projectId" value="">
+                <input id="model" value="gemini-live-2.5-flash-native-audio">
+                <input id="proxyUrl" value="ws://localhost:8080">
+                <textarea id="systemInstructions">
+                    SYSTEM ROLE: DIETICIAN FOLLOW-UP ASSISTANT AGENT
+
+                    You are an AI assistant designed to support licensed dieticians or nutritionists by communicating with their clients. You should be using thr language that the user is speaking.
+                    You have to properly switch and detect and start speaking in the same language as the user.
+
+                    Your role is to:
+                    - Follow up with clients
+                    - Monitor adherence to their diet plan
+                    - Collect feedback
+                    - Explain nutrition concepts
+                    - Provide light educational guidance
+                    - Log responses and observations
+                    - Summarize conversations for the dietician
+
+                    You must NOT diagnose medical conditions or replace the dietician's professional decisions.
+
+                    You are a supportive assistant, not the dietician.
+
+                    PRIMARY RESPONSIBILITIES
+
+                    1. DAILY FOLLOW UPS
+
+                    Regularly check in with the client and have a natural conversation about their day.
+
+                    Examples of questions you may ask:
+                    - How did your meals go today?
+                    - Did you follow your diet schedule today?
+                    - What did you have for breakfast, lunch, or dinner?
+                    - Did you have any snacks today?
+                    - Did you complete your recommended activity or exercise?
+                    - How are you feeling today (energy levels, hunger, cravings)?
+
+                    Keep the conversation friendly, natural, and supportive.
+
+
+                    2. CLIENT-SPECIFIC CONTEXT
+
+                    Use the client's stored information and diet plan from the knowledge base.
+
+                    Personalize conversations based on:
+                    - Assigned diet plan
+                    - Previous responses
+                    - Adherence history
+                    - Previous concerns
+                    - Dietician notes
+
+
+                    3. RECORD AND LOG RESPONSES
+
+                    Every response from the client must be recorded.
+
+                    Log the following information:
+
+                    - Meals eaten
+                    - Snacks
+                    - Exercise or activity
+                    - Mood, hunger, cravings, or energy levels
+                    - Questions asked
+                    - Requests for diet changes
+                    - Images or videos uploaded
+                    - Any off-plan foods
+                    - Any concerns or symptoms
+
+                    These logs must be stored so the dietician can review them later.
+
+
+                    4. EDUCATIONAL NUTRITION SUPPORT
+
+                    You are allowed to explain nutrition and foods in an educational way.
+
+                    You may explain:
+                    - Calories
+                    - Macronutrients (protein, carbohydrates, fats)
+                    - Fiber
+                    - Hydration
+                    - Nutritional value of foods
+                    - General digestion concepts
+                    - Common dietary properties of foods
+
+                    These explanations should be informative and helpful but must NOT turn into medical advice or prescriptions.
+
+
+                    EDUCATIONAL COMPARISON RULE
+
+                    If a client asks about foods or substitutions, you may explain the differences between the foods.
+
+                    You may compare foods using information such as:
+
+                    - Calories
+                    - Protein
+                    - Fat
+                    - Carbohydrates
+                    - Fiber
+                    - Common allergens
+                    - General dietary uses
+
+                    You should NOT decide which one the client should eat.
+
+                    Instead explain the differences and note the question for the dietician.
+
+                    Example style:
+
+                    Client: "Can I replace paneer with tofu?"
+
+                    Response style:
+                    Paneer and tofu are both good sources of protein but they are made differently. Paneer is a dairy product made from milk and tends to have more fat and calories. Tofu is made from soybeans and usually contains less fat while still providing good protein. Paneer may not work well for people with lactose intolerance, while tofu may not be suitable for people with soy allergies. Both can fit into balanced diets depending on the overall nutrition plan. I’ll note your question so your dietician can confirm what works best for your plan.
+
+
+                    GENERAL HEALTH BALANCING GUIDANCE
+
+                    You are allowed to give light, general wellness guidance when clients report foods they ate.
+
+                    This guidance should be:
+                    - Supportive
+                    - Non-judgmental
+                    - General healthy habits
+                    - Not strict instructions
+                    - Not changes to the doctor's diet plan
+
+                    You may suggest simple balancing behaviors such as:
+
+                    - Drinking more water
+                    - Including vegetables in later meals
+                    - Balancing heavy meals with lighter foods later
+                    - Eating fiber or protein to balance energy
+                    - Maintaining consistent meal timing
+                    - Being mindful of portion sizes
+
+                    You must NOT:
+                    - Change the diet plan
+                    - Prescribe specific replacements
+                    - Suggest calorie targets
+                    - Override the dietician's instructions
+
+
+                    HANDLING SNACKS OR OFF PLAN FOODS
+
+                    If a client reports foods like chips, sweets, fried foods, or heavy meals:
+
+                    1. Do not criticize the client.
+                    2. Respond in a supportive tone.
+                    3. Acknowledge that occasional treats happen.
+                    4. Suggest simple balancing habits like hydration or vegetables.
+                    5. Log the meal for the dietician.
+
+                    Example:
+
+                    Client: "I had chips in the evening."
+
+                    Response:
+                    Thanks for sharing that. Chips are usually higher in salt and fats, so drinking some extra water today can help balance the sodium. Occasional snacks happen, so no worries. I’ll log this for your dietician as well.
+
+
+                    IMAGE HANDLING
+
+                    If a client uploads an image such as:
+                    - Meal photos
+                    - Body progress pictures
+                    - Grocery items
+                    - Packaged foods
+                    - Food labels
+
+                    You should:
+
+                    1. Describe what you see
+                    2. Log the image
+                    3. Store the image and description for the dietician
+
+                    Example:
+                    "I see a plate with rice, vegetables, and grilled chicken. I'll log this as your meal so your dietician can review it."
+
+                    Do not judge the food or criticize the meal.
+
+
+                    VIDEO INTERACTION
+
+                    If video is supported and the client appears:
+
+                    - Recognize the client
+                    - Address them by name
+                    - Maintain a friendly tone
+
+                    Example:
+                    "Hi Rahul, good to see you. How did your meals go today?"
+
+
+                    ESCALATION RULES
+
+                    If the client:
+
+                    - Requests diet changes
+                    - Wants calorie adjustments
+                    - Asks for medical advice
+                    - Mentions symptoms or health issues
+                    - Requests supplements
+                    - Asks for major meal replacements
+
+                    You must not make the decision.
+
+                    Respond politely:
+
+                    "I'll note that down and inform your dietician so they can guide you properly."
+
+                    Log this as:
+                    ALERT FOR DIETICIAN
+
+
+                    STRICT RESTRICTIONS
+
+                    You must NEVER:
+
+                    - Diagnose diseases
+                    - Prescribe diets
+                    - Recommend supplements
+                    - Override the dietician's plan
+                    - Provide medical treatment advice
+
+
+                    CONVERSATION STYLE
+
+                    Your responses must feel natural and human.
+
+                    Use supportive language such as:
+
+                    - "Thanks for sharing."
+                    - "Got it."
+                    - "Nice job keeping track."
+                    - "That's helpful to know."
+
+                    You may ask follow-up questions to continue the conversation.
+
+                    Avoid sounding robotic or overly formal.
+
+
+                    MANDATORY SUMMARY GENERATION
+
+                    At the end of each interaction or conversation, generate an internal structured summary for the dietician.
+
+                    The summary must include:
+
+                    Client Name
+                    Date and Time
+
+                    Diet Adherence
+                    Breakfast followed: Yes / No / Unknown
+                    Lunch followed: Yes / No / Unknown
+                    Dinner followed: Yes / No / Unknown
+
+                    Meals Reported
+
+                    Snacks
+
+                    Exercise or Activity
+
+                    Mood / Energy Feedback
+
+                    Images Uploaded
+
+                    Client Questions
+
+                    Requests for Diet Changes
+
+                    Alerts for Dietician
+
+                    The summary should be factual and concise.
+
+                    Do not include motivational language in the summary.
+
+
+                    DATA RECORDING PROCESS
+
+                    Every client message should follow three steps:
+
+                    Step 1: Respond naturally and supportively.
+
+                    Step 2: Log important information:
+                    - meals
+                    - snacks
+                    - mood
+                    - exercise
+                    - questions
+                    - diet change requests
+
+                    Step 3: Update the daily summary for the dietician.
+
+
+                    BEHAVIORAL GOAL
+
+                    Your purpose is to:
+
+                    - Help clients stay accountable
+                    - Encourage healthy habits
+                    - Maintain natural conversations
+                    - Provide helpful nutrition education
+                    - Record daily progress
+                    - Support the dietician with clear summaries
+
+                    You are NOT a replacement for the dietician.
+
+                    All final dietary decisions must be made by the dietician.
+                    
+                </textarea>
+                <input type="checkbox" id="enableInputTranscription" checked>
+                <input type="checkbox" id="enableOutputTranscription" checked>
+                <input type="checkbox" id="enableGrounding">
+                <input type="checkbox" id="enableAffectiveDialog" checked>
+                <input type="checkbox" id="enableHealthSearchTool" checked>
+                <input type="checkbox" id="enableAlertTool">
+                <input type="checkbox" id="enableCssStyleTool">
+                <input type="checkbox" id="enableProactiveAudio" checked>
+                <select id="voiceSelect">
+                    <option value="Puck">Puck</option>
+                </select>
+                <input type="checkbox" id="disableActivityDetection">
+                <input type="number" id="silenceDuration" value="2000">
+                <input type="number" id="prefixPadding" value="500">
+                <select id="endSpeechSensitivity">
+                    <option value="END_SENSITIVITY_UNSPECIFIED">Default</option>
+                </select>
+                <select id="startSpeechSensitivity">
+                    <option value="START_SENSITIVITY_UNSPECIFIED">Default</option>
+                </select>
+                <select id="activityHandling">
+                    <option value="ACTIVITY_HANDLING_UNSPECIFIED">Default</option>
+                </select>
+            </div>
         </div>
     </div>
 
-    <div id="output-container">
-        <pre id="output"></pre>
-    </div>
-
-    <!-- Floating Text Input Area -->
-    <div id="floatingTextInput">
-        <textarea id="textInput"></textarea>
-        <button>Send</button>
-        <small>or Enter to send; use Shift+Enter for newlines</small>
-    </div>
-
+    <!-- Firebase -->
     <script type="module">
-        // Import necessary modules
-        import { marked } from 'https://esm.sh/marked'; // Markdown
-        import markedKatex from 'https://esm.sh/marked-katex-extension'; // LaTeX
-        import { GoogleGenAI, Modality } from 'https://esm.run/@google/genai'; // tested on v1.10
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.10.0/firebase-app.js";
+        import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.10.0/firebase-auth.js";
+        import { getFirestore, doc, getDoc } from "https://www.gstatic.com/firebasejs/10.10.0/firebase-firestore.js";
 
-        // Docs: https://ai.google.dev/gemini-api/docs/live
-        // https://googleapis.github.io/js-genai/release_docs/index.html
-        // https://github.com/googleapis/js-genai
+        // CONFIG_PLACEHOLDER
 
-        // --- Configuration ---
-        let API_KEY = null;
-        // you can hardcode an API key here if you want to serve just this file from localhost
+        const firebaseApp = initializeApp(firebaseConfig);
+        const auth = getAuth(firebaseApp);
+        const db = getFirestore(firebaseApp);
 
-        const MODEL_NAME = "gemini-2.5-flash-native-audio-preview-12-2025"; // Restored as requested by user
-        const TARGET_SAMPLE_RATE = 16000; // Gemini requires 16kHz audio
-        const SYSTEM_PROMPT = 'Please be a helpful assistant and kind conversationalist. ' +
-            'Respond to the user(s) directly by answering with relevant information ' +
-            'in full detail. When you do not have relevant information, use your ' +
-            'Google Search tool to search for it. You can use Markdown and LaTeX. ' +
-            "Do not merely describe the user(s)' utterances. Do not include timestamps.";
-        const INSTRUCTIONS = "**Instructions:**\n\nYou can interact with Gemini Live " +
-            "by speaking, uploading image files or from your camera, or typing or " +
-            "pasting text. You can search the web, ask for Python code to be executed, " +
-            "and see images like graphs from Matplotlib, as well as LaTeX mathematics " +
-            'typesetting.\n\nTry asking, "What can you do?"\n\n';
-
-        // --- DOM Elements ---
-        const controls = document.getElementById('controls');
-        const toggleButton = document.getElementById('toggleStream');
-        const outputArea = document.getElementById('output');
-        const sendImageButton = document.getElementById('sendImage');
-        const sendTextButton = document.getElementById('sendText');
-        const debugContainer = document.getElementById('debugContainer');
-        const floatingTextInput = document.getElementById('floatingTextInput');
-        const textInput = document.getElementById('textInput');
-
-        // --- State Variables ---
-        let genAI;
-        let liveSession = null;
-        let mediaStream = null;
-        let audioContext = null;
-        let outAudioContext = null;
-        let audioSource = null;
-        let audioWorkletNode = null;
-        let isStreaming = false;
-        let currentTurnText = "";
-        let totalBytesSent = 0;
-        let contextTurns = [];
-
-        function getCookie(name) {
-            const value = `; ${document.cookie}`;
-            const parts = value.split(`; ${name}=`);
-            if (parts.length === 2) return parts.pop().split(';').shift();
-        }
-
-        function checkApiKey() {
-            if (API_KEY) {
-                return true;
-            }
-            API_KEY = getCookie('gemini_api_key');
-            if (!API_KEY) {
-                liveOutput("API Key not set. Please reload this page to enter it.", 'error');
-                return false;
-            }
-            return true;
-        }
-
-        // --- Debug Checkbox Logic ---
-        const debugCheckbox = document.getElementById('debugCheckbox');
-        let debugMode = false; // Flag to control debug logging
-        // Add an event listener to the checkbox to toggle debug mode
-        debugCheckbox.addEventListener('change', () => {
-            debugMode = debugCheckbox.checked;
-        });
-
-        marked.use(markedKatex({ throwOnError: false })); // LaTeX
-
-        let transcript = ''; // Accumulates the full text of the user's speech.
-        let transcriptionElement = null; // A direct reference to the live transcription DOM element.
-
-        /** Helper function to keep the view scrolled to the latest message. */
-        function scrollToBottom() {
-            outputArea.parentNode.scrollTop = outputArea.parentNode.scrollHeight;
-        }
-
-        /**
-         * Outputs text to the display area, with special handling for live transcription.
-         * @param {string} text - The text content to display.
-         * @param {string} [type='text'] - The type of message: 'transcription', 'error', 'info', or 'text'.
-         */
-        function liveOutput(text, type = 'text') {
-            // 1. Finalize previous transcription if a new, non-transcription message arrives.
-            // This provides a simple, implicit finalization without needing a 'transcription_end' event.
-            if (type !== 'transcription' && transcriptionElement) {
-                transcriptionElement.textContent = "\nYou said: " + transcript + '\n\n';
-                if (debugMode) console.log("Transcription finalized with:", transcript);
-                transcriptionElement = null;
-                transcript = '';
-            }
-
-            // 2. Handle live transcription updates.
-            if (type === 'transcription') {
-                transcript += text;
-                if (debugMode) console.log("Partial input transcription:", text);
-
-                // Robustly find or create the live element.
-                // If it's been removed from the DOM for any reason, this will recreate it.
-                if (!transcriptionElement || !document.body.contains(transcriptionElement)) {
-                    transcriptionElement = document.createElement('div');
-                    transcriptionElement.classList.add('output', 'info');
-                    outputArea.appendChild(transcriptionElement);
-                }
-
-                // **Security:** Always use .textContent for user input to prevent XSS attacks.
-                transcriptionElement.textContent = "\nYou're saying: " + transcript + '\n\n';
-
-                // **Robustness:** Ensure the live line is always the last element.
-                if (transcriptionElement !== outputArea.lastElementChild) {
-                    outputArea.appendChild(transcriptionElement);
-                }
-
-                scrollToBottom();
-                return; // Exit after handling the transcription frame.
-            }
-
-            // 3. Handle all other message types (Gemini's response, errors, etc.).
-            const line = document.createElement('div');
-            line.innerHTML = marked.parse(text).replace('<a href=', '<a TARGET="_blank" href=');
-            line.classList.add('output');
-
-            switch (type) {
-                case 'error':
-                    line.classList.add('error');
-                    console.error(text);
-                    break;
-                case 'info':
-                    line.classList.add('info');
-                    if (debugMode) console.log(text);
-                    break;
-                default: // 'text'
-                    line.classList.add('text');
-                    if (debugMode) console.log("Gemini:", text);
-                    break;
-            }
-
-            outputArea.appendChild(line);
-            scrollToBottom();
-        }
-
-        function arrayBufferToBase64(buffer) {
-            let binary = "";
-            const bytes = new Uint8Array(buffer);
-            const len = bytes.byteLength;
-            for (let i = 0; i < len; i++) {
-                binary += String.fromCharCode(bytes[i]);
-            }
-            return window.btoa(binary);
-        }
-
-        // --- Audio Worklet ---
-        const AudioRecordingWorklet = `
-            class AudioProcessingWorklet extends AudioWorkletProcessor {
-                buffer = new Int16Array(2048);
-                bufferWriteIndex = 0;
-
-                constructor() {
-                    super();
-                }
-
-                process(inputs, outputs, parameters) {
-                    if (inputs.length > 0 && inputs[0].length > 0) {
-                        const channelData = inputs[0][0];
-                        this.processChunk(channelData);
-                    }
-                    return true; // Keep processor alive
-                }
-
-                sendAndClearBuffer() {
-                    if (this.bufferWriteIndex > 0) {
-                        const dataToSend = this.buffer.slice(0, this.bufferWriteIndex);
-                        this.port.postMessage({
-                            eventType: "audioData",
-                            audioData: dataToSend.buffer // Send ArrayBuffer
-                        }, [dataToSend.buffer]); // Transfer buffer ownership for efficiency
-                        this.bufferWriteIndex = 0;
-                    }
-                }
-
-                processChunk(float32Array) {
-                    for (let i = 0; i < float32Array.length; i++) {
-                        const clampedValue = Math.max(-1.0, Math.min(1.0, float32Array[i]));
-                        const int16Value = Math.floor(clampedValue * 32767);
-                        this.buffer[this.bufferWriteIndex++] = int16Value;
-                        if (this.bufferWriteIndex >= this.buffer.length) {
-                            this.sendAndClearBuffer();
-                        }
-                    }
-                }
-            }
-            registerProcessor('audio-processing-worklet', AudioProcessingWorklet);
-        `;
-
-        // --- Volume Meter Worklet --
-        const VolumeMeterWorklet = `
-        class VolumeMeter extends AudioWorkletProcessor {
-            constructor() {
-                super();
-                this.volume = 0;
-            }
-            
-            process(inputs) {
-                const input = inputs[0];
-                if (input.length > 0 && input[0].length > 0) {
-                    // Calculate RMS (Root Mean Square)
-                    let sumOfSquares = 0.0;
-                    for (const sample of input[0]) {
-                        sumOfSquares += sample * sample;
-                    }
-                    const rms = Math.sqrt(sumOfSquares / input[0].length);
-                    
-                    // Convert RMS to a linear scale (0.0 to 1.0)
-                    this.volume = Math.min(1.0, rms * 10); // Adjust multiplier as needed for sensitivity
-                    // Post a message to main thread with the volume level
-                    this.port.postMessage({ volume: this.volume });
-                } else {
-                    this.volume = 0;
-                }
-                
-                return true;
-            }
-        }
-        registerProcessor('volume-meter', VolumeMeter);
-        `;
-
-        // --- Audio Playback Worklet ---
-        const AudioPlaybackWorklet = `
-            class AudioPlaybackWorklet extends AudioWorkletProcessor {
-                constructor() {
-                    super();
-                    this.port.onmessage = (event) => {
-                        if (event.data.audioData) {
-                            this.handleAudioData(event.data.audioData);
-                        } else if (event.data.command === 'clearBuffer') {
-                            this.buffer = [];
-                        }
-                    };
-                    this.buffer = [];
-                }
-
-                handleAudioData(data) {
-                    const int16 = new Int16Array(data);
-                    const float32 = new Float32Array(int16.length);
-                    for (let i = 0; i < int16.length; i++) {
-                        float32[i] = int16[i] / 32768;
-                    }
-                    this.buffer.push(float32);
-                }
-
-                process(inputs, outputs) {
-                    const output = outputs[0][0];
-                    if (this.buffer.length > 0) {
-                        let samplesNeeded = output.length;
-                        let offset = 0;
-
-                        while (samplesNeeded > 0 && this.buffer.length > 0) {
-                            const chunk = this.buffer[0];
-                            const available = chunk.length;
-                            const toCopy = Math.min(available, samplesNeeded);
-                            
-                            output.set(chunk.subarray(0, toCopy), offset);
-                            
-                            if (toCopy < available) {
-                                this.buffer[0] = chunk.subarray(toCopy);
-                            } else {
-                                this.buffer.shift();
-                            }
-
-                            samplesNeeded -= toCopy;
-                            offset += toCopy;
-                        }
-                    }
-                    return true;
-                }
-            }
-            registerProcessor('audio-playback-worklet', AudioPlaybackWorklet);
-        `;
-        let volumeWorkletNode;
-        let audioPlaybackNode;
-
-        // Function to update the VU meter's background color
-        function updateVuMeter(volume) {
-            const darkness = Math.round(volume * 150); // Adjust multiplier for sensitivity
-            const newRed = Math.max(0, 224 - darkness); // Base red: 224
-            const newGreen = Math.max(0, 255 - darkness); // Base green: 255
-            const newBlue = Math.max(0, 255 - darkness); // Base blue: 255
-            controls.style.backgroundColor = `rgb(${newRed}, ${newGreen}, ${newBlue})`;
-        }
-
-        // --- Core Streaming Logic ---
-
-        async function startStreaming() {
-            if (isStreaming) return;
-            if (!checkApiKey()) {
-                return;
-
-            }
-
-            isStreaming = true; // Set streaming flag early
-            toggleButton.innerHTML = "Stop<br>Listening";
-            toggleButton.classList.add('stop');
-
-            try {
-                // Step 1: Initialize GoogleGenAI Client
-                genAI = new GoogleGenAI({ apiKey: API_KEY });
+        onAuthStateChanged(auth, async (user) => {
+            console.log("Auth State Changed:", user ? "Logged In" : "Logged Out");
+            if (user) {
                 try {
-                    const modelInfo = await genAI.models.get({ model: MODEL_NAME });
-                    if (debugMode) {
-                        console.log("Gemini model info:", modelInfo);
+                    // Verify role - wrap in try/catch to prevent hang if Firestore fails
+                    const userDoc = await getDoc(doc(db, "profiles", user.uid));
+                    if (userDoc.exists() && userDoc.data().role === 'dietician') {
+                        console.log("Role detected: Dietician. Redirecting...");
+                        window.location.href = '/dietician';
+                        return;
                     }
-                } catch (testError) {
-                    // Clear the cookie
-                    document.cookie = 'gemini_api_key=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;';
-                    // Redirect to root
-                    window.location.href = '/';
-                    return;
-                }
-
-                // Step 2: Get Microphone Access
-                mediaStream = await navigator.mediaDevices.getUserMedia({
-                    audio: {
-                        sampleRate: TARGET_SAMPLE_RATE,
-                        echoCancellation: false,
-                        noiseSuppression: true
-                    }
-                });
-
-                // Step 3: Create Audio Context and Source
-                audioContext = new AudioContext({ sampleRate: TARGET_SAMPLE_RATE });
-                // Resume context if suspended (often needed after page load)
-                if (audioContext.state === 'suspended') {
-                    await audioContext.resume();
-                }
-                audioSource = audioContext.createMediaStreamSource(mediaStream);
-
-                // Step 4: Set up Audio Playback Worklet
-                outAudioContext = new AudioContext({ sampleRate: 24000 });
-                if (outAudioContext.state === 'suspended') {
-                    await outAudioContext.resume();
-                }
-                const playbackBlob = new Blob([AudioPlaybackWorklet], { type: 'application/javascript' });
-                const playbackURL = URL.createObjectURL(playbackBlob);
-                await outAudioContext.audioWorklet.addModule(playbackURL);
-                audioPlaybackNode = new AudioWorkletNode(outAudioContext, 'audio-playback-worklet');
-                audioPlaybackNode.connect(outAudioContext.destination);
-
-                // Create a gain node to split the audio signal
-                const splitter = audioContext.createChannelSplitter(2);
-                const merger = audioContext.createChannelMerger(2);
-                const gainNode = audioContext.createGain();
-                gainNode.gain.value = 1; // No gain change
-
-                // A silence gate implementation to only send speech, preventing background noise from keeping the channel "busy"
-                // which often delays barge-in.
-
-                // Step 4: Set up Audio Worklet
-                const workletBlob = new Blob([AudioRecordingWorklet], { type: 'application/javascript' });
-                const workletURL = URL.createObjectURL(workletBlob);
-                try {
-                    await audioContext.audioWorklet.addModule(workletURL);
                 } catch (e) {
-                    liveOutput(`Error adding AudioWorklet module: ${e.message}. Make sure you are serving this page over HTTPS or localhost.`, 'error');
-                    throw e; // Re-throw to be caught by outer catch
+                    console.error("Error checking role:", e);
                 }
-                audioWorkletNode = new AudioWorkletNode(audioContext, 'audio-processing-worklet');
 
-                // Add the volume meter worklet
-                const volumeWorkletBlob = new Blob([VolumeMeterWorklet], { type: 'application/javascript' });
-                const volumeWorkletURL = URL.createObjectURL(volumeWorkletBlob);
-                try {
-                    await audioContext.audioWorklet.addModule(volumeWorkletURL);
-                } catch (e) {
-                    liveOutput(`Error adding VolumeMeter AudioWorklet module: ${e.message}. Make sure you are serving this page over HTTPS or localhost.`, 'error');
-                    throw e; // Re-throw to be caught by outer catch
-                }
-                volumeWorkletNode = new AudioWorkletNode(audioContext, 'volume-meter');
+                console.log("Initializing User Session...");
+                document.getElementById('auth-overlay').style.display = 'none';
+                document.getElementById('user-email').textContent = user.email.split('@')[0];
+                document.getElementById('projectId').value = firebaseConfig.projectId;
 
-                // Connect audio nodes: Mic Source -> Gain Node -> Volume Worklet
-                audioSource.connect(gainNode);
-                gainNode.connect(volumeWorkletNode);
-
-                //connect audio nodes: Gain Node -> split -> merge -> Gemini Worklet
-                gainNode.connect(splitter);
-                splitter.connect(merger, 0, 0); // Connect channel 0 to input 0
-                splitter.connect(merger, 0, 1); // Connect channel 0 to input 1
-                merger.connect(audioWorkletNode);
-
-                volumeWorkletNode.connect(audioWorkletNode);
-
-                // Step 5: Connect to Gemini Live API
-                // Assign to liveSession *after* connection is successful
-
-                liveSession = await genAI.live.connect({
-                    model: MODEL_NAME,
-                    audioConfig: { targetSampleRate: TARGET_SAMPLE_RATE },
-                    systemInstruction: { parts: [{ text: SYSTEM_PROMPT }] },
-                    config: {
-                        generationConfig: {
-                            responseModalities: [Modality.AUDIO],
-                            speechConfig: {
-                                voiceConfig: { prebuiltVoiceConfig: { voiceName: "Aoede" } }
-                            },
-                        },
-                        inputAudioTranscription: {},
-                        tools: [
-                            { googleSearch: {} },
-                        ],
-                        temperature: 0,
-                    },
-                    callbacks: {
-                        onopen: () => {
-                            // The connection to Gemini is open; audio processing and sending can begin
-                            debugContainer.style.display = 'none'; // Hide controls
-                            sendImageButton.style.display = 'inline-block'; // Show the button
-                            sendTextButton.style.display = 'inline-block';
-                            //liveOutput("Connected to Gemini. Listening...", 'info');
-                        },
-                        onmessage: (message) => {
-                            if (debugMode) {
-                                console.log("Debug message:", message);
-                            }
-
-                            if (message.serverContent?.modelTurn?.parts?.length > 0) {
-                                for (const part of message.serverContent.modelTurn.parts) {
-                                    if (part.inlineData && part.inlineData.mimeType.startsWith('audio/')) {
-                                        // Send to playback worklet
-                                        const binaryString = window.atob(part.inlineData.data);
-                                        const bytes = new Uint8Array(binaryString.length);
-                                        for (let i = 0; i < binaryString.length; i++) {
-                                            bytes[i] = binaryString.charCodeAt(i);
-                                        }
-                                        audioPlaybackNode.port.postMessage({ audioData: bytes.buffer }, [bytes.buffer]);
-                                        continue;
-                                    }
-
-                                    if (part.inlineData && part.inlineData.mimeType.startsWith('image/')) {
-                                        try {
-                                            // Handle image data
-                                            const img = document.createElement('img');
-                                            img.classList.add('output-image'); // Add CSS class for styling
-                                            img.src = `data:${part.inlineData.mimeType};base64,${part.inlineData.data}`;
-                                            liveOutput("Image from Gemini:", "info")
-                                            outputArea.appendChild(img);
-                                            outputArea.parentNode.scrollTop = outputArea.parentNode.scrollHeight;
-                                            // append model turn to context
-                                            if (!part.inlineData.mimeType.startsWith('image/gif')) { // .gif files cause bugs
-                                                contextTurns.push({
-                                                    role: 'model', parts: [{
-                                                        inlineData:
-                                                            { 'mimeType': part.inlineData.mimeType, 'data': part.inlineData.data }
-                                                    }]
-                                                });
-                                            }
-                                        } catch (renderError) {
-                                            liveOutput(`Error rendering image: ${renderError.message}`, 'error');
-                                        }
-                                    } else if (part.executableCode) {
-                                        liveOutput("**Python code:**\n```\n" + part.executableCode.code + " ```");
-                                        // append model turn to context
-                                        contextTurns.push({ role: 'model', parts: [{ text: part.executableCode.code }] });
-                                    } else if (part.codeExecutionResult) {
-                                        const result = part.codeExecutionResult;
-                                        liveOutput("**Output:** (" + result.outcome + ")\n``` \n" + result.output + " ```");
-                                        // append model turn to context
-                                        contextTurns.push({ role: 'model', parts: [{ text: result.outcome + "\n\n" + result.output }] });
-                                    } else if (part.text) {
-                                        currentTurnText += part.text;
-                                    }
-                                }
-                            }
-                            if (message.serverContent?.interrupted) {
-                                liveOutput("Interrupted.", 'info');
-                                audioPlaybackNode.port.postMessage({ command: 'clearBuffer' });
-                                currentTurnText = "";
-                            }
-                            if (message.serverContent?.turnComplete || message.generationComplete) {
-                                // Finalize text when a turn was completed
-                                if (currentTurnText.trim().length > 0) {
-                                    liveOutput(currentTurnText);
-                                    // append model turn to context
-                                    contextTurns.push({ role: 'model', parts: [{ text: currentTurnText }] });
-                                }
-                                currentTurnText = ""; // Reset for next turn
-                            } else if (message.serverContent?.inputTranscription) {
-                                liveOutput(message.serverContent?.inputTranscription.text, 'transcription');
-                            }
-
-                            if (message.error) {
-                                liveOutput(`Gemini Error: ${message.error.message || JSON.stringify(message.error)}`, 'error');
-                            }
-                        },
-                        onerror: (errorEvent) => {
-                            // Use errorEvent directly if it's an Error object, otherwise stringify
-                            const errorMessage = errorEvent instanceof Error ? errorEvent.message : JSON.stringify(errorEvent);
-                            liveOutput(`Gemini connection error: ${errorMessage}`, 'error');
-                            stopStreaming(); // Stop on connection error
-                        },
-                        onclose: (closeEvent) => {
-                            // Only call stopStreaming if the closure was unexpected while we were actively streaming
-                            if (isStreaming) {
-                                liveOutput("Connection closed unexpectedly. Code: " + closeEvent.code +
-                                    ", reason: " + closeEvent.reason + ", wasClean: " + closeEvent.wasClean,
-                                    'error');
-                                stopStreaming();
-                            }
-                        },
-                    },
-                });
-                // send prior context if any
-                if (contextTurns.length) {
-                    liveOutput(`Sending ${contextTurns.length} turns of prior context above.`, 'info');
-                    contextTurns.push({ role: 'user', parts: [{ text: "Please summarize our discussion so far." }] })
-                    await liveSession.sendClientContent({
-                        turns: contextTurns,
-                        turnComplete: true
-                    });
-                }
-                liveOutput("Connected to Gemini. Listening...", 'info');
-
-                // Step 6: Handle Audio Data from Worklet
-                audioWorkletNode.port.onmessage = (event) => {
-                    // Check if it's audio data, if the session exists, and if we are still streaming
-                    if (event.data.eventType === 'audioData' && liveSession && isStreaming) {
-                        const audioDataBuffer = event.data.audioData;
-                        const base64AudioData = arrayBufferToBase64(audioDataBuffer);
-
-                        try {
-                            // Send audio chunk to Gemini
-                            liveSession.sendRealtimeInput({
-                                audio: {
-                                    data: base64AudioData,
-                                    mimeType: `audio/pcm;rate=${TARGET_SAMPLE_RATE}`
-                                }
-                            });
-                            totalBytesSent += audioDataBuffer.byteLength;
-                            if (debugMode && (totalBytesSent - 4096) % 163840 === 0) { // every ~5 seconds
-                                console.log("Audio sent", totalBytesSent, "bytes,",
-                                    Math.round(totalBytesSent / 32000), "seconds");
-                            }
-                        } catch (sendError) {
-                            liveOutput(`Error sending audio data: ${sendError.message}`, 'error');
-                            // Optionally stop streaming if sending fails repeatedly
-                            // stopStreaming();
-                        }
-                    }
-                };
-
-                // Handle volume events 1
-                let isSpeaking = false;
-                volumeWorkletNode.port.onmessage = (event) => {
-                    if (event.data.volume !== undefined) {
-                        updateVuMeter(event.data.volume);
-                        const wasSpeaking = isSpeaking;
-                        isSpeaking = event.data.volume > 0.05; // Quick noise gate
-
-                        // Client-side instantaneous barge-in
-                        if (isSpeaking && !wasSpeaking) {
-                            audioPlaybackNode.port.postMessage({ command: 'clearBuffer' });
-                            currentTurnText = "";
-                        }
-                    }
-                };
-
-            } catch (error) {
-                liveOutput(`Error starting stream: ${error.message || error}`, 'error');
-                await stopStreaming(); // Ensure cleanup happens even on startup error
-            }
-        }
-
-        async function stopStreaming() {
-            // Prevent multiple stop calls overlapping
-            if (!isStreaming && !liveSession && !mediaStream && !audioContext && !outAudioContext) {
-                console.log("Stop called but already stopped/cleaned up.");
-                return;
-            }
-            const wasStreaming = isStreaming; // Keep track if we were actively streaming
-            isStreaming = false; // Set flag immediately to stop sending data
-
-            // Step 7: Close Gemini Session
-            if (liveSession) {
-                try {
-                    liveSession.close();
-                } catch (e) {
-                    liveOutput(`Error closing Gemini session: ${e.message}`, 'error');
-                } finally {
-                    liveSession = null;
-                }
-            }
-
-            // Step 8: Stop Audio Processing
-            if (audioWorkletNode) {
-                audioWorkletNode.disconnect();
-                audioWorkletNode = null;
-            }
-            // disconnect the volume meter node
-            if (volumeWorkletNode) {
-                volumeWorkletNode.disconnect();
-
-                volumeWorkletNode = null;
-
-            }
-            if (audioSource) {
-                audioSource.disconnect();
-                audioSource = null;
-            }
-            // Step 9: Stop Media Stream Tracks
-            if (mediaStream) {
-                mediaStream.getTracks().forEach(track => track.stop());
-                mediaStream = null;
-            }
-            // Step 10: Close Audio Context
-            if (audioContext && audioContext.state !== 'closed') {
-                try {
-                    await audioContext.close();
-                } catch (e) {
-                    liveOutput(`Error closing AudioContext: ${e.message}`, 'error');
-                } finally {
-                    audioContext = null;
-                }
-            }
-            if (outAudioContext && outAudioContext.state !== 'closed') {
-                try {
-                    await outAudioContext.close();
-                } catch (e) {
-                    liveOutput(`Error closing outAudioContext: ${e.message}`, 'error');
-                } finally {
-                    outAudioContext = null;
-                }
-            }
-
-            // Step 11: Reset UI
-            toggleButton.innerHTML = "Start<br>Listening";
-            toggleButton.classList.remove('stop');
-            sendTextButton.style.display = 'none'; // Hide the text button
-            sendImageButton.style.display = 'none'; // Hide the image button
-            debugContainer.style.display = 'inline-block'; // Restore controls
-            genAI = null; // Clear the client instance
-            if (wasStreaming) {
-                liveOutput("Stopped listening.\n", 'info');
-            }
-        }
-
-        // --- Event Listener ---
-        toggleButton.addEventListener('click', () => {
-            if (isStreaming) {
-                stopStreaming();
+                // Store sanitized full email for backend operations
+                const sanitizedEmail = user.email.replace(/@/g, "_at_").replace(/\./g, "_");
+                document.getElementById('userEmailFull').value = sanitizedEmail;
             } else {
-                startStreaming();
+                console.log("No user found, redirecting to login.");
+                window.location.href = '/login';
             }
         });
 
-        // "Send Image" button event listener
-        document.getElementById('sendImage').addEventListener('click', () => {
-            // Create a file input element
-            const input = document.createElement('input');
-            input.type = 'file';
-            input.accept = 'image/*'; // Accept only image files
-
-            // Add event listener for file selection
-            input.addEventListener('change', (event) => {
-                const file = event.target.files[0];
-                if (file) {
-                    liveOutput(`Processing image: ${file.name}`, 'info');
-                    const reader = new FileReader();
-                    reader.onload = async () => {
-                        try {
-                            let base64Data = reader.result.split(',')[1];
-                            let mimeType = file.type;
-
-                            // Downscale if necessary
-                            if (base64Data.length > 250 * 1024 * 0.75) { // Approximate base64 size
-                                const downscaled = await downscaleImage(base64Data, mimeType, 250 * 1024);
-                                base64Data = downscaled.base64;
-                                mimeType = downscaled.mimeType;
-                                liveOutput(`Image downscaled to ${(base64Data.length * 0.75 / 1024).toFixed(2)}KB`, 'info');
-                            }
-
-                            // Display image in output area
-                            const img = document.createElement('img');
-                            img.classList.add('output-image');
-                            img.src = `data:${mimeType};base64,${base64Data}`;
-                            outputArea.appendChild(img);
-                            outputArea.parentNode.scrollTop = outputArea.parentNode.scrollHeight;
-
-                            // Send image to stream
-                            sendImageToStream(base64Data, mimeType);
-
-                        } catch (error) {
-                            liveOutput(`Error processing image: ${error.message}`, 'error');
-                        }
-                    };
-                    reader.onerror = (error) => { liveOutput(`Failed to read file: ${error}`, 'error'); };
-                    reader.readAsDataURL(file);
-                }
-            });
-
-            // Trigger the file input dialog
-            input.click();
-        });
-
-        // Helper function for downscaling
-        function downscaleImage(base64, mimeType, maxSize) {
-            return new Promise((resolve, reject) => {
-                const img = new Image();
-                img.onload = () => {
-                    let width = img.width;
-                    let height = img.height;
-                    let newWidth = width;
-                    let newHeight = height;
-
-                    // Calculate scaling factor to fit within maxSize
-                    const canvas = document.createElement('canvas');
-                    const ctx = canvas.getContext('2d');
-
-                    // Binary search for the right quality
-                    let low = 0.1;
-                    let high = 1.0;
-                    let quality = 0.8;  // Initial guess
-                    let result = null;
-
-                    for (let i = 0; i < 10; i++) {  // 10 iterations of binary search
-                        canvas.width = newWidth;
-                        canvas.height = newHeight;
-                        ctx.drawImage(img, 0, 0, newWidth, newHeight);
-                        const newBase64 = canvas.toDataURL(mimeType, quality).split(',')[1];
-                        const newSize = newBase64.length * 0.75;
-
-                        if (newSize <= maxSize) {
-                            result = { base64: newBase64, mimeType: mimeType };
-                            low = quality;  // Try for better quality
-                        } else {
-                            high = quality;
-                            // Scale down image dimensions to reduce size.
-                            const scaleFactor = Math.sqrt(maxSize / newSize);
-                            newWidth = Math.floor(newWidth * scaleFactor);
-                            newHeight = Math.floor(newHeight * scaleFactor);
-                        }
-                        quality = (low + high) / 2;
-                    }
-
-                    if (result) {
-                        resolve(result);
-                    } else {
-                        // Should not happen after scaling image dimensions
-                        reject(new Error("Could not downscale image to the required size."));
-                    }
-                };
-                img.onerror = () => reject(new Error("Failed to load image for downscaling."));
-                img.src = `data:${mimeType};base64,${base64}`;
-            });
-        }
-
-        // Function to send the image to the stream
-        async function sendImageToStream(base64Image, mimeType = 'image/jpeg') {
-            if (!liveSession || !isStreaming) {
-                liveOutput('Error: Live session not active. Please start listening first.', 'error');
-                return;
-            }
-            try {
-                // Debug information
-                if (debugMode) {
-                    console.log(`Sending image (${(base64Image.length * 0.75 / 1024).toFixed(2)}KB) with MIME type: ${mimeType}`);
-                }
-
-                // Send the image as a completed turn
-                await liveSession.sendClientContent({
-                    turns: [{
-                        role: 'user',
-                        parts: [{
-                            inlineData: {
-                                mimeType: mimeType,
-                                data: base64Image
-                            }
-                        }]
-                    }],
-                    turnComplete: true
-                });
-                liveOutput('Image sent successfully! Waiting for Gemini to process...', 'info');
-                // append user turn to context
-                contextTurns.push({ role: 'user', parts: [{ inlineData: { 'mimeType': mimeType, 'data': base64Image } }] });
-            } catch (error) {
-                // Handle the error appropriately
-                liveOutput(`Error sending image: ${error.message || JSON.stringify(error)}`, 'error');
-            }
-        }
-
-        // Function to submit text input from the floating input area
-        function submitTextInput() {
-            const text = textInput.value;
-            floatingTextInput.style.display = 'none';
-            textInput.value = "";
-            if (text.trim() !== "") { // Check for empty input
-                sendTextToStream(text); // Send the text to the stream
-            }
-        }
-
-        // If using Enter key in the textarea:
-        textInput.addEventListener('keydown', (event) => {
-            if (event.key === 'Enter' && !event.shiftKey) { // Enter without Shift
-                event.preventDefault(); // Prevent default Enter behavior (newline)
-                submitTextInput();
-            }
-        });
-
-        async function sendTextToStream(text) {
-            if (!liveSession || !isStreaming) {
-                liveOutput('Error: Live session not active. Please start listening first.', 'error');
-                return;
-            }
-            try {
-                await liveSession.sendClientContent({
-                    turns: [{
-                        role: 'user',
-                        parts: [{
-                            text: text
-                        }]
-                    }],
-                    turnComplete: true
-                });
-                liveOutput('Sent: ' + text, 'info');
-                // append user turn to context
-                contextTurns.push({ role: 'user', parts: [{ text: text }] });
-            } catch (error) {
-                liveOutput(`Error sending text: ${error.message || JSON.stringify(error)}`, 'error');
-            }
-        }
-
-        // Event listener for the Send button in the floating text input
-        document.querySelector('#floatingTextInput button').addEventListener('click', () => {
-            submitTextInput();
-        });
-
-        // Add a click event listener to the sendTextButton
-        sendTextButton.addEventListener('click', () => {
-            floatingTextInput.style.display = 'block'; // Display the input area
-            textInput.focus(); // Focus on the text input area
-        });
-
-        // Event listener to hide floatingTextInput on outside click
-        document.addEventListener('click', (event) => {
-            if (
-                floatingTextInput.style.display === 'block' &&
-                !floatingTextInput.contains(event.target) &&
-                event.target !== sendTextButton // Check if the click is NOT on the sendTextButton
-            ) {
-                floatingTextInput.style.display = 'none';
-            }
-        });
-
-        if (checkApiKey()) {
-            const instructions = document.createElement('div');
-            instructions.innerHTML = marked.parse(INSTRUCTIONS)
-            outputArea.appendChild(instructions);
-            outputArea.parentNode.scrollTop = outputArea.parentNode.scrollHeight;
-            liveOutput("Click 'Start Listening' to begin.", 'info');
-        }
-
-        // Add safety net for page unload
-        window.addEventListener('beforeunload', () => {
-            if (isStreaming) {
-                stopStreaming(); // Attempt cleanup if user navigates away
-            }
-        });
+        document.getElementById('logoutBtn').addEventListener('click', () => signOut(auth));
     </script>
+
+    <!-- Visualizer Logic -->
+    <script>
+        const waveform = document.getElementById('waveform');
+        const barCount = 40;
+        const bars = [];
+
+        for (let i = 0; i < barCount; i++) {
+            const bar = document.createElement('div');
+            bar.className = 'bar';
+            bar.style.height = '4px';
+            waveform.appendChild(bar);
+            bars.push(bar);
+        }
+
+        window.updateVisualizer = (data) => {
+            const aiLabel = document.getElementById('ai-speaking-label');
+            const rings = document.querySelectorAll('.voice-ring');
+
+            if (data && data.length > 0) {
+                aiLabel.style.opacity = '1';
+                rings.forEach(r => r.classList.add('active'));
+
+                // Simplified visualization based on chunk amplitude
+                for (let i = 0; i < barCount; i++) {
+                    const index = Math.floor(i * (data.length / barCount));
+                    const value = Math.abs(data[index]) * 100;
+                    bars[i].style.height = Math.max(4, value) + 'px';
+                }
+            } else {
+                aiLabel.style.opacity = '0';
+                rings.forEach(r => r.classList.remove('active'));
+                bars.forEach(b => b.style.height = '4px');
+            }
+        };
+    </script>
+
+    <!-- Core Logic -->
+    <script src="/static/geminilive.js"></script>
+    <script src="/static/mediaUtils.js"></script>
+    <script src="/static/tools.js"></script>
+    <script src="/static/script.js"></script>
 </body>
+
+</html>
 
 </html>
