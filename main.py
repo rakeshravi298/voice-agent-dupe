@@ -145,7 +145,7 @@ async def handle_http(request):
 
     for fp in search_paths:
         if os.path.exists(fp) and os.path.isfile(fp):
-            if target in ["gemini-live.html", "landing.html", "dietician.html"]:
+            if target in ["gemini-live.html", "landing.html", "dietician.html", "login-user.html", "login-dietician.html"]:
                 with open(fp, "r", encoding="utf-8") as f: content = f.read()
                 config = get_firebase_config()
                 content = content.replace('// CONFIG_PLACEHOLDER', f"const firebaseConfig = {json.dumps(config, indent=4)};")

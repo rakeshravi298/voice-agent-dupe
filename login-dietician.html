@@ -5,7 +5,24 @@
     <meta charset="UTF-8">
     <title>NutriBuddy | Secure Access</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="icon" type="image/x-icon" href="/static/favicon.ico">
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script>
+        // Inline Theme Script to avoid flash of unstyled content
+        function applyTheme(theme) {
+            const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+            const isDark = theme === 'dark' || (theme === 'system' && prefersDark);
+
+            if (isDark) {
+                document.documentElement.setAttribute('data-theme', 'dark');
+            } else {
+                document.documentElement.removeAttribute('data-theme');
+            }
+        }
+
+        const savedTheme = localStorage.getItem('nutribuddy-theme') || 'system';
+        applyTheme(savedTheme);
+    </script>
     <style>
         :root {
             --primary: #1F2937;
@@ -16,6 +33,19 @@
             --text-muted: #6B7280;
             --border-color: #E5E7EB;
             --input-bg: #F9FAFB;
+            --btn-text: #FFFFFF;
+        }
+
+        [data-theme="dark"] {
+            --primary: #F3F4F6;
+            --accent: #10B981;
+            --accent-hover: #34D399;
+            --bg-light: #111827;
+            --text-main: #F9FAFB;
+            --text-muted: #9CA3AF;
+            --border-color: #374151;
+            --input-bg: #1F2937;
+            --btn-text: #111827;
         }
 
         * {
@@ -29,9 +59,10 @@
             font-family: 'Outfit', sans-serif;
             background-color: var(--bg-light);
             color: var(--text-main);
-            height: 100vh;
+            min-height: 100vh;
             display: flex;
-            overflow: hidden;
+            overflow-x: hidden;
+            overflow-y: auto;
         }
 
         /* Split Screen Layout */
@@ -85,7 +116,7 @@
             align-items: center;
             justify-content: center;
             padding: 40px;
-            background: white;
+            background: var(--bg-light);
             position: relative;
         }
 
@@ -93,12 +124,6 @@
             width: 100%;
             max-width: 420px;
             animation: fadeIn 0.8s cubic-bezier(0.16, 1, 0.3, 1);
-        }
-
-        @media (max-width: 480px) {
-            h1 { font-size: 1.5rem; }
-            .logo { font-size: 2rem; }
-            .login-btn { padding: 14px; font-size: 1rem; }
         }
 
         @keyframes fadeIn {
@@ -178,7 +203,7 @@
         .input-field:focus {
             outline: none;
             border-color: var(--accent);
-            background-color: white;
+            background-color: var(--bg-light);
             box-shadow: 0 0 0 4px rgba(16, 185, 129, 0.1);
         }
 
@@ -190,7 +215,7 @@
             width: 100%;
             padding: 1rem;
             background-color: var(--primary);
-            color: white;
+            color: var(--btn-text);
             border: none;
             border-radius: 12px;
             font-size: 1rem;
@@ -201,7 +226,7 @@
         }
 
         .btn-primary:hover {
-            background-color: #111827;
+            opacity: 0.9;
             transform: translateY(-1px);
         }
 
@@ -232,67 +257,22 @@
             text-decoration: underline;
         }
 
-        .role-selector {
-            display: none;
-            margin-bottom: 1.5rem;
-            animation: fadeIn 0.4s ease;
-        }
-
-        .role-selector label {
+        .switch-portal {
             display: block;
-            font-size: 0.875rem;
-            font-weight: 500;
-            margin-bottom: 0.75rem;
-        }
-
-        .role-options {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 1rem;
-        }
-
-        .role-option {
-            position: relative;
-            display: flex;
-            align-items: center;
-            padding: 1rem;
+            text-align: center;
+            margin-top: 1.5rem;
+            color: var(--text-muted);
+            font-size: 0.85rem;
+            text-decoration: none;
+            padding: 10px;
             border: 1px solid var(--border-color);
-            border-radius: 12px;
-            cursor: pointer;
+            border-radius: 8px;
             transition: all 0.2s;
-            background: var(--input-bg);
         }
 
-        .role-option:hover {
-            border-color: #D1D5DB;
-        }
-
-        .role-option input:checked+.role-label {
-            color: var(--accent);
-        }
-
-        .role-option:has(input:checked) {
-            border-color: var(--accent);
-            background: rgba(16, 185, 129, 0.05);
-        }
-
-        .role-option input {
-            position: absolute;
-            opacity: 0;
-            cursor: pointer;
-        }
-
-        .role-label {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            font-weight: 500;
+        .switch-portal:hover {
+            background: #F9FAFB;
             color: var(--primary);
-            width: 100%;
-        }
-
-        .role-icon {
-            color: inherit;
         }
 
         .footer-note {
@@ -305,6 +285,41 @@
             color: var(--text-muted);
         }
 
+        .theme-toggle-wrapper {
+            position: absolute;
+            top: 2rem;
+            right: 2rem;
+            display: flex;
+            background: var(--input-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 20px;
+            padding: 4px;
+            z-index: 50;
+        }
+
+        .theme-btn {
+            background: transparent;
+            border: none;
+            color: var(--text-muted);
+            padding: 6px 10px;
+            border-radius: 16px;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .theme-btn:hover {
+            color: var(--primary);
+        }
+
+        .theme-btn.active {
+            background: var(--bg-light);
+            color: var(--accent);
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
+        }
+
         /* SVG Icons */
         .icon {
             width: 20px;
@@ -315,6 +330,27 @@
             stroke-linecap: round;
             stroke-linejoin: round;
         }
+
+        /* Mobile Responsiveness */
+        @media (max-width: 768px) {
+            body {
+                flex-direction: column;
+            }
+
+            .auth-section {
+                padding: 20px;
+                min-height: 100vh;
+            }
+
+            .theme-toggle-wrapper {
+                top: 1rem;
+                right: 1rem;
+            }
+
+            .auth-container {
+                margin: auto 0;
+            }
+        }
     </style>
 </head>
 
@@ -322,14 +358,43 @@
     <div class="hero-section">
         <div class="hero-overlay"></div>
         <div class="hero-content">
-            <h1 class="hero-title">Elevate your nutrition practice with AI.</h1>
-            <p class="hero-subtitle">NutriBuddy seamlessly connects dieticians with clients through an intelligent,
-                empathetic voice assistant platform.</p>
+            <h1 class="hero-title">Your AI-Powered Nutrition Clinic.</h1>
+            <p class="hero-subtitle">Manage clients, index medical plans, and review automated AI session summaries
+                effortlessly from one unified dashboard.</p>
         </div>
     </div>
 
     <div class="auth-section">
         <div class="auth-container">
+            <!-- Theme Toggle -->
+            <div class="theme-toggle-wrapper">
+                <button class="theme-btn" id="theme-light" title="Light Theme">
+                    <svg class="icon" style="width: 16px; height: 16px;" viewBox="0 0 24 24">
+                        <circle cx="12" cy="12" r="5" />
+                        <line x1="12" y1="1" x2="12" y2="3" />
+                        <line x1="12" y1="21" x2="12" y2="23" />
+                        <line x1="4.22" y1="4.22" x2="5.64" y2="5.64" />
+                        <line x1="18.36" y1="18.36" x2="19.78" y2="19.78" />
+                        <line x1="1" y1="12" x2="3" y2="12" />
+                        <line x1="21" y1="12" x2="23" y2="12" />
+                        <line x1="4.22" y1="19.78" x2="5.64" y2="18.36" />
+                        <line x1="18.36" y1="5.64" x2="19.78" y2="4.22" />
+                    </svg>
+                </button>
+                <button class="theme-btn" id="theme-system" title="System Theme">
+                    <svg class="icon" style="width: 16px; height: 16px;" viewBox="0 0 24 24">
+                        <rect x="2" y="3" width="20" height="14" rx="2" ry="2" />
+                        <line x1="8" y1="21" x2="16" y2="21" />
+                        <line x1="12" y1="17" x2="12" y2="21" />
+                    </svg>
+                </button>
+                <button class="theme-btn" id="theme-dark" title="Dark Theme">
+                    <svg class="icon" style="width: 16px; height: 16px;" viewBox="0 0 24 24">
+                        <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
+                    </svg>
+                </button>
+            </div>
+
             <a href="/" class="brand-logo">
                 <img src="/static/logo.png" alt="NutriBuddy" width="36" height="36" style="border-radius: 8px;">
                 NutriBuddy
@@ -361,39 +426,17 @@
                     </div>
                 </div>
 
-                <div class="role-selector" id="role-selection">
-                    <label>I am a:</label>
-                    <div class="role-options">
-                        <label class="role-option">
-                            <input type="radio" name="role" value="user" checked>
-                            <div class="role-label">
-                                <svg class="icon role-icon" viewBox="0 0 24 24">
-                                    <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2" />
-                                    <circle cx="12" cy="7" r="4" />
-                                </svg>
-                                Client
-                            </div>
-                        </label>
-                        <label class="role-option">
-                            <input type="radio" name="role" value="dietician">
-                            <div class="role-label">
-                                <svg class="icon role-icon" viewBox="0 0 24 24">
-                                    <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
-                                    <path d="m9 12 2 2 4-4" />
-                                </svg>
-                                Dietician
-                            </div>
-                        </label>
-                    </div>
-                </div>
-
                 <button class="btn-primary" id="submitBtn">Sign In</button>
             </div>
 
             <div class="toggle-auth">
                 <span id="toggle-text">Don't have an account?</span>
-                <button id="toggleAuthBtn">Sign up</button>
+                <button id="toggleAuthBtn">Sign up as Dietician</button>
             </div>
+
+            <a href="/login/user" class="switch-portal">
+                Are you a Client? <strong>Go to Client Portal</strong>
+            </a>
         </div>
 
         <div class="footer-note">
@@ -426,26 +469,24 @@
         toggleAuthBtn.addEventListener('click', () => {
             isLogin = !isLogin;
             if (isLogin) {
-                authTitle.textContent = 'Welcome back';
-                authSubtitle.textContent = 'Please enter your details to sign in.';
+                authTitle.textContent = 'Welcome back Dietician';
+                authSubtitle.textContent = 'Please enter your details to sign in to your dashboard.';
                 submitBtn.textContent = 'Sign In';
                 toggleText.textContent = "Don't have an account?";
-                toggleAuthBtn.textContent = "Sign up";
-                document.getElementById('role-selection').style.display = 'none';
+                toggleAuthBtn.textContent = "Sign up as Dietician";
             } else {
-                authTitle.textContent = 'Create an account';
-                authSubtitle.textContent = 'Start your health journey today.';
+                authTitle.textContent = 'Join as Dietician';
+                authSubtitle.textContent = 'Start managing your clients intelligently.';
                 submitBtn.textContent = 'Sign Up';
                 toggleText.textContent = "Already have an account?";
                 toggleAuthBtn.textContent = "Sign in";
-                document.getElementById('role-selection').style.display = 'block';
             }
         });
 
         submitBtn.addEventListener('click', async () => {
             const email = emailInput.value;
             const password = passwordInput.value;
-            const role = document.querySelector('input[name="role"]:checked')?.value || 'user';
+            const role = 'dietician'; // Fixed role for this page
 
             if (!email || !password) {
                 alert("Please fill in all fields.");
@@ -522,6 +563,37 @@
                     <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
                     <circle cx="12" cy="12" r="3" />
                 `;
+            }
+        });
+
+        // Theme Setup
+        const btnLight = document.getElementById('theme-light');
+        const btnDark = document.getElementById('theme-dark');
+        const btnSystem = document.getElementById('theme-system');
+
+        function setThemeUI(theme) {
+            btnLight.classList.toggle('active', theme === 'light');
+            btnDark.classList.toggle('active', theme === 'dark');
+            btnSystem.classList.toggle('active', theme === 'system');
+
+            localStorage.setItem('nutribuddy-theme', theme);
+
+            // The global applyTheme function defined in <head>
+            window.applyTheme(theme);
+        }
+
+        btnLight.onclick = () => setThemeUI('light');
+        btnDark.onclick = () => setThemeUI('dark');
+        btnSystem.onclick = () => setThemeUI('system');
+
+        // Initialize UI buttons state
+        const initialTheme = localStorage.getItem('nutribuddy-theme') || 'system';
+        setThemeUI(initialTheme);
+
+        // Listen to system theme changes for dynamic updates
+        window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', e => {
+            if (localStorage.getItem('nutribuddy-theme') === 'system') {
+                window.applyTheme('system');
             }
         });
     </script>
