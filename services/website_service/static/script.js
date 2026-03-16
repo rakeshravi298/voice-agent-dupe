@@ -61,9 +61,9 @@ function initDOM() {
     "debugInfo",
     "setupJsonSection",
     "setupJsonDisplay",
-    "summarizeBtn",
     "summaryContainer",
-    "summaryContent"
+    "summaryContent",
+    "tool-activity-label"
   ];
 
   ids.forEach((id) => {
@@ -129,7 +129,13 @@ function updateStatus(elementId, text) {
 
 // Connect to Gemini
 async function connect() {
-  const proxyUrl = elements.proxyUrl.value || null;
+  // Dynamic Proxy URL
+  let proxyUrl = elements.proxyUrl.value;
+  if (!proxyUrl) {
+      const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
+      proxyUrl = `${protocol}//${window.location.host}/ws`;
+      elements.proxyUrl.value = proxyUrl;
+  }
   const projectId = elements.projectId.value;
   const model = elements.model.value;
 
@@ -140,6 +146,11 @@ async function connect() {
 
   try {
     updateStatus("connectionStatus", "Connecting...");
+    
+    // Voice feedback: "I might take some time"
+    const synth = window.speechSynthesis;
+    const utterance = new SpeechSynthesisUtterance("I might take some time");
+    synth.speak(utterance);
 
     // 1. Fetch Today's Session Context (Memory)
     let contextData = "";
@@ -221,6 +232,7 @@ async function connect() {
     state.client.onReceiveResponse = handleMessage;
     state.client.onErrorMessage = handleError;
     state.client.onConnectionStarted = handleOpen;
+    state.client.onConnectionClosed = handleClose;
 
     await state.client.connect();
 
@@ -233,6 +245,16 @@ async function connect() {
 
     updateStatus("debugInfo", "Connected successfully");
     console.log("🚀 Connection established and handlers initialized");
+
+    // Automatically start audio streaming
+    setTimeout(async () => {
+        if (!state.audio.isStreaming) {
+            await toggleAudio();
+            // Voice feedback: "I am ready"
+            const readyUtterance = new SpeechSynthesisUtterance("I am ready");
+            window.speechSynthesis.speak(readyUtterance);
+        }
+    }, 1000);
   } catch (error) {
     console.error("❌ Connection failed:", error);
     updateStatus("connectionStatus", "Connection failed: " + error.message);
@@ -241,13 +263,15 @@ async function connect() {
   }
 }
 
-// Disconnect
-function disconnect() {
-  if (state.client && state.client.webSocket) {
-    state.client.webSocket.close();
-    state.client = null;
+// Disconnect triggered by user
+function userDisconnect() {
+  if (state.client) {
+    state.client.disconnect();
   }
+}
 
+// Internal cleanup
+function disconnect() {
   // Stop all streams
   if (state.audio.streamer) state.audio.streamer.stop();
   if (state.video.streamer) state.video.streamer.stop();
@@ -257,18 +281,27 @@ function disconnect() {
   state.audio.isStreaming = false;
   state.video.isStreaming = false;
   state.screen.isSharing = false;
+  state.client = null;
 
-  // Update UI
-  updateStatus("connectionStatus", "Disconnected");
-
-  if (elements.startAudioBtn) elements.startAudioBtn.textContent = "Start Audio";
-  if (elements.startVideoBtn) elements.startVideoBtn.textContent = "Start Video";
-  if (elements.startScreenBtn) elements.startScreenBtn.textContent = "Share Screen";
+  // Reset UI
+  if (elements.startAudioBtn) {
+    elements.startAudioBtn.innerHTML = '<span style="font-size: 1.2rem;">🎙️</span> Start Voice Proxy';
+    elements.startAudioBtn.style.background = "rgba(255, 255, 255, 0.03)";
+    elements.startAudioBtn.style.color = "var(--text-main)";
+    elements.startAudioBtn.style.display = "none";
+  }
+  
+  if (elements.startVideoBtn) {
+    elements.startVideoBtn.innerHTML = '<span style="font-size: 1.2rem;">👁️</span> Turn on Camera';
+    elements.startVideoBtn.style.background = "rgba(255, 255, 255, 0.03)";
+    elements.startVideoBtn.style.color = "var(--text-main)";
+  }
 
   if (elements.videoPreview) {
     elements.videoPreview.hidden = true;
     elements.videoPreview.srcObject = null;
   }
+  if (document.getElementById('camera-placeholder')) document.getElementById('camera-placeholder').style.display = 'block';
 }
 
 // Handle messages
@@ -331,10 +364,12 @@ function handleMessage(message) {
         }
         if (elements.setupJsonSection) elements.setupJsonSection.style.display = "block";
       }
+      if (elements["tool-activity-label"]) elements["tool-activity-label"].style.opacity = '0';
       break;
 
     case MultimodalLiveResponseType.TOOL_CALL:
       console.log("🛠️ Tool call received: ", message.data);
+      if (elements["tool-activity-label"]) elements["tool-activity-label"].style.opacity = '1';
       const functionCalls = message.data.functionCalls || [];
       const userEmail = document.getElementById('userEmailFull').value;
       
@@ -351,11 +386,13 @@ function handleMessage(message) {
     case MultimodalLiveResponseType.TURN_COMPLETE:
       console.log("Turn complete");
       finalizeCurrentTurn();
+      if (elements["tool-activity-label"]) elements["tool-activity-label"].style.opacity = '0';
       updateStatus("debugInfo", "Turn complete");
       break;
 
     case MultimodalLiveResponseType.INTERRUPTED:
       console.log("Interrupted");
+      if (elements["tool-activity-label"]) elements["tool-activity-label"].style.opacity = '0';
       addMessage("[Interrupted]", "system");
       if (state.audio.player) state.audio.player.interrupt();
       break;
@@ -367,7 +404,6 @@ function handleOpen() {
   updateStatus("connectionStatus", "Connected");
   if (elements.connectBtn) elements.connectBtn.style.display = "none";
   if (elements.disconnectBtn) elements.disconnectBtn.style.display = "block";
-  if (elements.summarizeBtn) elements.summarizeBtn.style.display = "block";
   const mediaControls = document.getElementById('mediaControls');
   if (mediaControls) mediaControls.style.display = "grid";
 }
@@ -379,9 +415,9 @@ function handleClose() {
   const mediaControls = document.getElementById('mediaControls');
   if (mediaControls) mediaControls.style.display = "none";
   
-  // Keep summarizeBtn visible if there's history, otherwise hide it
-  if (elements.summarizeBtn && state.history.length === 0) {
-      elements.summarizeBtn.style.display = "none";
+  // Automatically summarize if there is history
+  if (state.history.length > 0) {
+      summarizeSession(true);
   }
   
   disconnect();
@@ -453,7 +489,7 @@ async function toggleVideo() {
         elements.videoPreview.srcObject = video.srcObject;
         elements.videoPreview.hidden = false;
         if (document.getElementById('camera-placeholder')) document.getElementById('camera-placeholder').style.display = 'none';
-        elements.startVideoBtn.innerHTML = '<span style="font-size: 1.2rem;">✖</span> Stop Analysis';
+        elements.startVideoBtn.innerHTML = '<span style="font-size: 1.2rem;">✖</span> Stop Camera';
         elements.startVideoBtn.style.background = "rgba(255, 118, 117, 0.1)";
         elements.startVideoBtn.style.color = "#FF7675";
         addMessage("[Camera on]", "system");
@@ -470,7 +506,7 @@ async function toggleVideo() {
     elements.videoPreview.srcObject = null;
     elements.videoPreview.hidden = true;
     if (document.getElementById('camera-placeholder')) document.getElementById('camera-placeholder').style.display = 'block';
-    elements.startVideoBtn.innerHTML = '<span style="font-size: 1.2rem;">👁️</span> Analyze View';
+    elements.startVideoBtn.innerHTML = '<span style="font-size: 1.2rem;">👁️</span> Turn on Camera';
     elements.startVideoBtn.style.background = "rgba(255, 255, 255, 0.03)";
     elements.startVideoBtn.style.color = "var(--text-main)";
     addMessage("[Camera off]", "system");
@@ -581,21 +617,24 @@ function updateTemperature() {
 }
 
 // Session Summarization
-async function summarizeSession() {
+async function summarizeSession(silent = false) {
     if (state.history.length === 0) {
-        alert("No conversation history to summarize.");
+        if (!silent) alert("No conversation history to summarize.");
         return;
     }
 
     if (state.isSummarizing) return;
     
     try {
-        state.isSummarizing = true;
-        elements.summarizeBtn.disabled = true;
-        elements.summarizeBtn.innerHTML = '<span class="spinner">⏳</span> Summarizing...';
-        
-        elements.summaryContainer.style.display = "block";
-        elements.summaryContent.innerHTML = "Generating your session summary...";
+        if (silent) {
+            console.log("🤫 Silent summarization started in background...");
+        } else {
+            state.isSummarizing = true;
+            elements.summarizeBtn.disabled = true;
+            elements.summarizeBtn.innerHTML = '<span class="spinner">⏳</span> Summarizing...';
+            elements.summaryContainer.style.display = "block";
+            elements.summaryContent.innerHTML = "Generating your session summary...";
+        }
 
         const userEmail = document.getElementById('userEmailFull').value;
 
@@ -611,21 +650,26 @@ async function summarizeSession() {
         const data = await response.json();
         
         if (data.summary) {
-            // Simple markdown to HTML conversion (basic)
-            elements.summaryContent.innerHTML = data.summary
-                .replace(/\n/g, '<br>')
-                .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-                .replace(/\*(.*?)\*/g, '<em>$1</em>');
+            console.log("✅ Background summarization complete");
+            if (!silent) {
+                // Simple markdown to HTML conversion (basic)
+                elements.summaryContent.innerHTML = data.summary
+                    .replace(/\n/g, '<br>')
+                    .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+                    .replace(/\*(.*?)\*/g, '<em>$1</em>');
+            }
         } else {
-            elements.summaryContent.textContent = "Failed to generate summary: " + (data.error || "Unknown error");
+            if (!silent) elements.summaryContent.textContent = "Failed to generate summary: " + (data.error || "Unknown error");
         }
     } catch (error) {
         console.error("Summarization Error:", error);
-        elements.summaryContent.textContent = "Error: " + error.message;
+        if (!silent) elements.summaryContent.textContent = "Error: " + error.message;
     } finally {
-        state.isSummarizing = false;
-        elements.summarizeBtn.disabled = false;
-        elements.summarizeBtn.innerHTML = '<span style="font-size: 1.2rem;">📝</span> Summarize Session';
+        if (!silent) {
+            state.isSummarizing = false;
+            elements.summarizeBtn.disabled = false;
+            elements.summarizeBtn.innerHTML = '<span style="font-size: 1.2rem;">📝</span> Summarize Session';
+        }
     }
 }
 
@@ -670,11 +714,10 @@ async function indexDocument() {
 // Event listeners
 function initEventListeners() {
   if (elements.connectBtn) elements.connectBtn.addEventListener("click", connect);
-  if (elements.disconnectBtn) elements.disconnectBtn.addEventListener("click", disconnect);
+  if (elements.disconnectBtn) elements.disconnectBtn.addEventListener("click", userDisconnect);
   if (elements.startAudioBtn) elements.startAudioBtn.addEventListener("click", toggleAudio);
   if (elements.startVideoBtn) elements.startVideoBtn.addEventListener("click", toggleVideo);
   if (elements.startScreenBtn) elements.startScreenBtn.addEventListener("click", toggleScreen);
-  if (elements.summarizeBtn) elements.summarizeBtn.addEventListener("click", summarizeSession);
   if (elements.indexDocBtn) elements.indexDocBtn.addEventListener("click", indexDocument);
   if (elements.sendBtn) elements.sendBtn.addEventListener("click", sendMessage);
   if (elements.volume) elements.volume.addEventListener("input", updateVolume);

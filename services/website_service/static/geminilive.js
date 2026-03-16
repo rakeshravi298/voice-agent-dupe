@@ -172,6 +172,10 @@ class GeminiLiveAPI {
       this.connected = false;
     };
 
+    this.onConnectionClosed = () => {
+      console.log("Default onConnectionClosed");
+    };
+
     console.log("Created Gemini Live API object: ", this);
   }
 
@@ -274,7 +278,7 @@ class GeminiLiveAPI {
     this.webSocket.onclose = (event) => {
       console.log("websocket closed: ", event);
       this.connected = false;
-      this.onErrorMessage("Connection closed");
+      this.onConnectionClosed();
     };
 
     this.webSocket.onerror = (event) => {

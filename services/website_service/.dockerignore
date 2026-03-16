@@ -1,0 +1,13 @@
+.venv/
+__pycache__/
+archive/
+docs/
+scripts/
+.git/
+.env
+.idx/
+rough.ipynb
+*.pyc
+*.pyo
+*.pyd
+.db

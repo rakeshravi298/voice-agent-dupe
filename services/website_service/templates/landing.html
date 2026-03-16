@@ -95,6 +95,12 @@
             animation: fadeIn 0.8s cubic-bezier(0.16, 1, 0.3, 1);
         }
 
+        @media (max-width: 480px) {
+            h1 { font-size: 1.5rem; }
+            .logo { font-size: 2rem; }
+            .login-btn { padding: 14px; font-size: 1rem; }
+        }
+
         @keyframes fadeIn {
             from {
                 opacity: 0;
@@ -384,15 +390,10 @@
                 <button class="btn-primary" id="submitBtn">Sign In</button>
             </div>
 
-            <div class="toggle-auth">
-                <span id="toggle-text">Don't have an account?</span>
-                <button id="toggleAuthBtn">Sign up</button>
-            </div>
+
         </div>
 
-        <div class="footer-note">
-            Securely powered by Vertex AI & Cloud Firestore
-        </div>
+
     </div>
 
     <!-- Firebase SDKs -->
@@ -412,29 +413,8 @@
         const emailInput = document.getElementById('email');
         const passwordInput = document.getElementById('password');
         const submitBtn = document.getElementById('submitBtn');
-        const toggleAuthBtn = document.getElementById('toggleAuthBtn');
         const authTitle = document.getElementById('auth-title');
         const authSubtitle = document.getElementById('auth-subtitle');
-        const toggleText = document.getElementById('toggle-text');
-
-        toggleAuthBtn.addEventListener('click', () => {
-            isLogin = !isLogin;
-            if (isLogin) {
-                authTitle.textContent = 'Welcome back';
-                authSubtitle.textContent = 'Please enter your details to sign in.';
-                submitBtn.textContent = 'Sign In';
-                toggleText.textContent = "Don't have an account?";
-                toggleAuthBtn.textContent = "Sign up";
-                document.getElementById('role-selection').style.display = 'none';
-            } else {
-                authTitle.textContent = 'Create an account';
-                authSubtitle.textContent = 'Start your health journey today.';
-                submitBtn.textContent = 'Sign Up';
-                toggleText.textContent = "Already have an account?";
-                toggleAuthBtn.textContent = "Sign in";
-                document.getElementById('role-selection').style.display = 'block';
-            }
-        });
 
         submitBtn.addEventListener('click', async () => {
             const email = emailInput.value;

@@ -399,6 +399,37 @@
             margin-top: 1.5rem;
         }
 
+        /* NEW GRID LAYOUT for Record Card */
+        .record-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 2rem;
+            margin-top: 1rem;
+        }
+
+        .upload-compact {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            padding: 1.5rem;
+            background: #F9FAFB;
+            border: 1px dashed #D1D5DB;
+            border-radius: 16px;
+            height: 100%;
+        }
+
+        .upload-icon-box {
+            width: 44px;
+            height: 44px;
+            background: white;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--accent);
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        }
+
         /* Summaries List */
         .summary-list {
             display: flex;
@@ -689,43 +720,51 @@
                     </div>
                 </div>
 
-                <div class="form-group">
-                    <label class="form-label">Record Title</label>
-                    <input type="text" id="recordTitle" class="input-lg" placeholder="e.g., April Diet Plan - Phase 2">
-                </div>
+                <div class="record-grid">
+                    <div class="left-pane" style="display: flex; flex-direction: column;">
+                        <div class="form-group">
+                            <label class="form-label">Record Title</label>
+                            <input type="text" id="recordTitle" class="input-lg" placeholder="e.g., April Diet Plan - Phase 2">
+                        </div>
 
-                <div class="form-group">
-                    <label class="form-label">Content or Instructions</label>
-                    <textarea id="recordContent" class="input-lg"
-                        placeholder="Type the diet plan details, medical notes, or guidance here..."></textarea>
-                </div>
-
-                <div class="upload-area">
-                    <div style="flex-grow: 1;">
-                        <label class="form-label" style="margin-bottom: 2px;">Attach Document (Optional)</label>
-                        <span
-                            style="font-size: 0.8rem; color: var(--text-muted); display: block; margin-bottom: 8px;">Supports
-                            PDF. This will be embedded for the AI to read.</span>
-                        <input type="file" id="pdfFile" accept="application/pdf">
+                        <div class="form-group">
+                            <label class="form-label">Content or Instructions</label>
+                            <textarea id="recordContent" class="input-lg" style="min-height: 120px;"
+                                placeholder="Type the diet plan details, medical notes, or guidance here..."></textarea>
+                        </div>
+                        
+                        <button class="btn btn-accent" id="uploadBtn" style="padding: 12px 24px; align-self: flex-end;">
+                            <svg class="icon" viewBox="0 0 24 24">
+                                <path d="M5 12h14" />
+                                <path d="m12 5 7 7-7 7" />
+                            </svg>
+                            Save & Index Text Record
+                        </button>
                     </div>
-                    <button class="btn btn-outline" id="uploadPdfBtn">
-                        <svg class="icon" style="width: 16px; height: 16px;" viewBox="0 0 24 24">
-                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                            <polyline points="17 8 12 3 7 8" />
-                            <line x1="12" y1="3" x2="12" y2="15" />
-                        </svg>
-                        Upload PDF
-                    </button>
-                </div>
 
-                <div class="actions-row">
-                    <button class="btn btn-accent" id="uploadBtn">
-                        <svg class="icon" viewBox="0 0 24 24">
-                            <path d="M5 12h14" />
-                            <path d="m12 5 7 7-7 7" />
-                        </svg>
-                        Save & Index Text Record
-                    </button>
+                    <div class="right-pane">
+                        <label class="form-label">Attach Record Attachment</label>
+                        <div class="upload-compact">
+                            <div class="upload-icon-box">
+                                <svg class="icon" viewBox="0 0 24 24" style="width: 24px; height: 24px;">
+                                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/>
+                                </svg>
+                            </div>
+                            <div>
+                                <div style="font-weight: 600; font-size: 0.95rem; color: var(--primary);">Reference Document</div>
+                                <p style="font-size: 0.8rem; color: var(--text-muted); margin-top: 4px;">Upload labs or diet docs (PDF recommended).</p>
+                            </div>
+                            <input type="file" id="pdfFile" accept="application/pdf" style="font-size: 0.85rem;">
+                            <button class="btn btn-outline" id="uploadPdfBtn" style="width: 100%; margin-top: auto;">
+                                <svg class="icon" style="width: 16px; height: 16px;" viewBox="0 0 24 24">
+                                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                                    <polyline points="17 8 12 3 7 8" />
+                                    <line x1="12" y1="3" x2="12" y2="15" />
+                                </svg>
+                                Upload PDF
+                            </button>
+                        </div>
+                    </div>
                 </div>
             </div>
 
@@ -756,6 +795,28 @@
 
         </div>
     </div>
+
+    <script>
+        // Sidebar Toggle for Mobile
+        const menuToggle = document.getElementById('menuToggle');
+        const sidebar = document.getElementById('sidebar');
+        
+        menuToggle.onclick = () => {
+            sidebar.classList.toggle('mobile-open');
+            menuToggle.textContent = sidebar.classList.contains('mobile-open') ? '✕' : '☰';
+        };
+
+        // Close sidebar on click outside or on item selection (mobile)
+        document.addEventListener('click', (e) => {
+            if (window.innerWidth <= 768 && 
+                !sidebar.contains(e.target) && 
+                e.target !== menuToggle && 
+                sidebar.classList.contains('mobile-open')) {
+                sidebar.classList.remove('mobile-open');
+                menuToggle.textContent = '☰';
+            }
+        });
+    </script>
 
     <!-- Firebase SDKs -->
     <script type="module">
@@ -843,6 +904,8 @@
                 });
             } catch (err) {
                 console.error("Error loading users:", err);
+            } finally {
+                loader.style.display = 'none';
             }
         }
 
@@ -906,6 +969,23 @@
             loadSummaries(user.email);
         }
 
+        function parseSummaryMarkdown(text) {
+            if (!text) return "";
+            return text
+                // Headers 
+                .replace(/^## (.*$)/gm, '<h3>$1</h3>')
+                .replace(/^### (.*$)/gm, '<h4>$1</h4>')
+                // Bold
+                .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+                // Lists
+                .replace(/^\* (.*$)/gm, '<li>$1</li>')
+                .replace(/^- (.*$)/gm, '<li>$1</li>')
+                .replace(/(<li>.*<\/li>)/gms, '<ul>$1</ul>')
+                // Newlines
+                .replace(/\n\n/g, '<p></p>')
+                .replace(/\n/g, '<br>');
+        }
+
         async function loadSummaries(email) {
             const container = document.getElementById('summariesContainer');
             container.innerHTML = `
@@ -953,7 +1033,7 @@
             const content = document.getElementById('recordContent').value;
 
             if (!title || !content) {
-                alert("Please fill in both title and content to index a text record.");
+                alert("Please provide both a title and the content for text indexing.");
                 return;
             }
 

@@ -1,11 +1,8 @@
-fastapi
-uvicorn
 google-genai
 websockets
 python-dotenv
-python-multipart
 aiohttp
 certifi
 google-auth
-google-cloud-storage 
+google-cloud-storage
 google-cloud-firestore
